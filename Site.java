@@ -40,7 +40,7 @@ class Site {
     /**
      * return the curren value of the data copy
      */
-    public int read() {
+    public int read(int variableId) {
 
     }
 

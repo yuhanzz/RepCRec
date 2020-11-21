@@ -1,23 +1,92 @@
 public class TransactionManager {
 
-    Map<Integer, Site> sites;    // <key : siteId, value : site>
-    Map<Integer, Transaction> transactions; // <key : transactionId, value : transaction>
-    Map<Integer, DataInfo> dataCollection;  // <key : variableId, value : data information>
-    List<Operation> pendingList;
-    Map<Integer, Set<Integer>> waitsForGraph;
-    Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the timestamp, the value is the snapshot
+    private Map<Integer, Site> sites;    // <key : siteId, value : site>
+    private Map<Integer, Transaction> transactions; // <key : transactionId, value : transaction>
+    private Map<Integer, DataInfo> dataCollection;  // <key : variableId, value : data information>
+    private List<Operation> pendingList;
+    private Map<Integer, Set<Integer>> waitsForGraph;
+    private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the timestamp, the value is the snapshot
 
 
-    public boolean read() {
-        
+    /**
+     * if the read is successful, will return true, and output the message, might change the lock status
+     * if the read failed , will return false, might change the waitsForGraph
+     */
+    public boolean read(int transactionId, int variableId) {
+        Transaction transaction = transactions.get(transactionId);
+        DataInfo dataInfo = dataCollection.get(variableId);
+        List<Integer> availableSites = dataInfo.getAvailableSites();
+        Integer value = null;
+
+        // if read-only transaction
+        if (transaction.isReadOnly()) {
+            Map<Integer, Integer> snapshot = snapshots.get(transactionId);
+            // if snapshot is missing this part
+            if (!snapshot.containsKey(variableId)) {
+                return false;
+            }
+            value = snapshot.get(variableId);
+            System.out.println("x" + variableId + ": " + value);
+            return true;
+        }
+
+        // if read-write transaction
+        for (int siteId : availableSites) {
+            Site site = sites.get(siteId);
+
+            // if the site is down
+            if (site.getSiteStatus() == SiteStatus.DOWN) {
+                continue;
+            }
+
+            // if the copy is not available for read
+            if (!site.readAvailable(variableId)) {
+                continue;
+            }
+
+            // if holding the read lock
+            if (transaction.isHoldingLock(LockType.READ, variableId)) {
+                value = read(variableId);
+                break;
+            }
+
+            // if need to acquire read lock
+            Set<Integer> conflictingTransactions = lockAvailable()
+
+            // if can not acquire read lock
+            if (!conflictingTransactions.isEmpty()) {
+                Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
+                for (int vertex : conflictingTransactions) {
+                    vertices.add(vertex);
+                }
+                waitsForGraph.put(transactionId, vertices);
+                break;
+            }
+
+            // if can acquire read lock
+            site.acquireLock(LockType.READ, transactionId, variableId);
+            value = site.read(variableId);
+            break;
+        }
+
+        if (value == null) {
+            return false;
+        }
+
+        System.out.println("x" + variableId + ": " + value);
+        return true;
     }
 
+    /**
+     * 
+     */
     public boolean write() {
 
     }
 
     public boolean commit() {
 
+        // remove from the transactions list
     }
 
     public void abort() {
