@@ -8,18 +8,21 @@ class Site {
      * initialize the Site
      */
     public Site() {
-
+        // need to figure this out for dataManager and lockManager
+        this.siteStatus = siteStatus.UP;
+        this.latestFailedTime = -1;
     }
     
     public SiteStatus getSiteStatus() {
-
+        return this.siteStatus;
     }
 
     /**
      * return true if the readAvailable of this data copy is true
      */
     public boolean readAvailable(int variableId) {
-
+        if(dataManager.readAvailable(variableId)) return true;
+        return false;
     }
 
     /**
@@ -27,7 +30,22 @@ class Site {
      * return the set of conflicting transactions if failed
      */
     public Set<Integer> lockAvailable(LockType lockType, int variableId) {
-
+        Set<Integer> conflictingTransactions = new HashSet<>(); 
+        if(lockType == LockType.READ)
+        {
+            if(readAvailable(variableId))
+            {
+                return conflictingTransactions;
+            }
+        }
+        else
+        {
+            if(lockManager.getAllTrasactionIDS(variableId).isEmpty())
+            {
+                return conflictingTransactions;
+            }
+        }
+        return lockManager.getAllTrasactionIDS(variableId);
     }
 
     /**
