@@ -1,11 +1,11 @@
-import java.util.*;
-
+/**
+ * records all the information that the transaction manager needs to know about a transaction
+ */
 public class Transaction{
-    public int ID;
+    public int id;
     public int beginTime;
-    public TransactionType type;   // READ_ONLY, READ_WRITE
-    public TransactionStatus status;   // ACTIVE, ABORTED, COMMITED, BLOCKED
-    public List<Integer> accessedSites;
-    public Map<Integer, Integer> snapshot;    // only used for READ_ONLY transaction
-    public Set<Lock> locks;
+    public TransactionType type;
+    public TransactionStatus status;
+    public Set<Integer> accessedSites;
+    public Set<Integer, Pair<Integer, Integer>> holdingLocks;
 }
