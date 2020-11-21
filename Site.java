@@ -23,10 +23,10 @@ class Site {
     }
 
     /**
-     * return the empty set if acquiring succeeds
+     * return the empty set if can acquire this lock
      * return the set of conflicting transactions if failed
      */
-    public Set<Integer> lockAvailable(LockType lockType, int transactionId, int variableId) {
+    public Set<Integer> lockAvailable(LockType lockType, int variableId) {
 
     }
 
@@ -47,7 +47,7 @@ class Site {
     /**
      * change the current value of the data copy
      */
-    public void write() {
+    public void write(int variableId, int value) {
 
     }
 

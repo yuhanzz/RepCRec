@@ -32,4 +32,11 @@ public class Transaction{
     public boolean isReadOnly() {
         return type == TransactionType.READ_ONLY;
     }
+
+    public void addLock(LockType lockType, int variableId) {
+        if (isHoldingLock(lockType, variableId)) {
+            return;
+        }
+        holdingLocks.put(variableId, lockType);
+    }
 }

@@ -46,12 +46,12 @@ public class TransactionManager {
 
             // if holding the read lock
             if (transaction.isHoldingLock(LockType.READ, variableId)) {
-                value = read(variableId);
+                value = site.read(variableId);
                 break;
             }
 
             // if need to acquire read lock
-            Set<Integer> conflictingTransactions = lockAvailable()
+            Set<Integer> conflictingTransactions = lockAvailable(LockType.READ, variableId)
 
             // if can not acquire read lock
             if (!conflictingTransactions.isEmpty()) {
@@ -65,6 +65,7 @@ public class TransactionManager {
 
             // if can acquire read lock
             site.acquireLock(LockType.READ, transactionId, variableId);
+            transaction.addLock(LockType.READ, variableId);
             value = site.read(variableId);
             break;
         }
@@ -78,15 +79,86 @@ public class TransactionManager {
     }
 
     /**
-     * 
+     * write to all the available copies
+     * return false if waiting for locks or all sites are down
+     * may change the waitsForGraph, and transaction's holding locks
      */
-    public boolean write() {
+    public boolean write(int transactionId, int variableId, int value) {
+        Transaction transaction = transactions.get(transactionId);
+        DataInfo dataInfo = dataCollection.get(variableId);
+        List<Integer> availableSites = dataInfo.getAvailableSites();
+        int upSites = 0;
 
+        // if is holding the lock, just write to all available sites, if all the sites failed, return false
+        if (transaction.isHoldingLock(LockType.WRITE, variableId)) {
+
+            for (int siteId : availableSites) {
+                Site site = sites.get(siteId);
+
+                // if the site is down
+                if (site.getSiteStatus() == SiteStatus.DOWN) {
+                    continue;
+                }
+
+                site.write(variableId, value);
+                upSites++;
+            }
+            return upSites > 0;
+        }
+
+        // check write lock availability
+        boolean writeLockAvailable = true;
+        for (int siteId : availableSites) {
+            Site site = sites.get(siteId);
+
+            // if the site is down
+            if (site.getSiteStatus() == SiteStatus.DOWN) {
+                continue;
+            }
+
+            upSites++;
+
+            Set<Integer> conflictingTransactions = lockAvailable(LockType.WRITE, variableId)
+
+            // if can not acquire write lock, add all conflicting transactions to the waitsForGraph
+            if (!conflictingTransactions.isEmpty()) {
+                writeLockAvailable = false;
+                Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
+                for (int vertex : conflictingTransactions) {
+                    vertices.add(vertex);
+                }
+                waitsForGraph.put(transactionId, vertices);
+            }
+        }
+
+        if (!writeLockAvailable) {
+            return false;
+        }
+
+        if (upSites == 0) {
+            return false;
+        }
+
+        // if can acquire write lock
+        for (int siteId : availableSites) {
+            Site site = sites.get(siteId);
+            if (site.getSiteStatus() == SiteStatus.DOWN) {
+                continue;
+            }
+            site.acquireLock(LockType.WRITE, transactionId, variableId);
+            site.write(variableId, value);
+        }
+
+        transaction.addLock(LockType.WRITE, variableId);
+
+        return true;
     }
 
     public boolean commit() {
 
         // remove from the transactions list
+
+        // call retry becasue there might be newly written committed value to recovered sites, and new available locks
     }
 
     public void abort() {
