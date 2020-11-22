@@ -3,8 +3,49 @@
  */
 
 class DataCopy {
-    int currentValue;
-    int committedValue;
-    boolean readAvailable;
-    DataType dataType;
+    private int currentValue;
+    private int committedValue;
+    private boolean readAvailable;
+    private DataType dataType;
+
+
+    public DataCopy(DataType dataType)
+    {
+        this.currentValue = 0;
+        this.committedValue = 0; 
+        this.readAvailable = true;
+        this.dataType = dataType;
+    }
+
+    public int getCurrentValue() {
+        return currentValue;
+    }
+
+    public void setCurrentValue(int currentValue) {
+        this.currentValue = currentValue;
+    }
+
+    public int getCommittedValue() {
+        return committedValue;
+    }
+
+    public void setCommittedValue(int committedValue) {
+        this.committedValue = committedValue;
+    }
+
+    public boolean isReadAvailable() {
+        return readAvailable;
+    }
+
+    public void setReadAvailable(boolean readAvailable) {
+        this.readAvailable = readAvailable;
+    }
+
+    public DataType getDataType() {
+        return dataType;
+    }
+
+    public void setDataType(DataType dataType) {
+        this.dataType = dataType;
+    }
 }
