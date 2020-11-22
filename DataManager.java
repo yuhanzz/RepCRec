@@ -1,5 +1,7 @@
 import java.util.*;
 
+import javax.xml.crypto.Data;
+
 public class DataManager {
     Map<Integer, DataCopy> dataCopies;  // <key : variable id, value : data copy>
 
@@ -64,14 +66,13 @@ public class DataManager {
 
     public void setAllNonReplicatedReadAvail(boolean avail)
     {
-        // Set<Map.Entry<Integer,DataCopy>> = dataCopies.entrySet();
-        // for(: )
-        // {
-        //     DataCopy dCopy = dataCopies.get(variable);
-        //     if(dCopy.getDataType() == DataType.NOT_REPLICATED)
-        //     {
-        //         dCopy.setReadAvailable(avail);
-        //     }
-        // }
+        Set<Map.Entry<Integer,DataCopy>> set = dataCopies.entrySet();
+        for(Map.Entry<Integer,DataCopy> entry: set)
+        {
+            if (entry.getValue().getDataType() == DataType.NOT_REPLICATED)
+            {
+                updateReadAvail(entry.getKey(), avail);
+            }
+        }
     }
 }

@@ -146,7 +146,6 @@ class Site {
         // change the site status
         siteStatus = SiteStatus.UP;
         // for all the non-replicated data copies on this site, set its readAvailable to true
-        
-
+        dataManager.setAllNonReplicatedReadAvail(true);
     }
 }
