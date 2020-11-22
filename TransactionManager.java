@@ -249,14 +249,6 @@ public class TransactionManager {
     }
 
     /**
-     * 
-     */
-
-    public void removeTransactionFromWaitsForGraph(int transactionId) {
-
-    }
-
-    /**
      * make up the missing part of each snapshot immediately
     */
     public void receiveRecoverNotice() {
@@ -300,6 +292,17 @@ public class TransactionManager {
         // if retry failed, add its transaction to blocked set
 
         // if retry succeeded, change transaction status to ACTIVE, remove this operation from the pending list 
+    }
+
+    /**
+     * remove the edges in waitsForGraph whose source vertex or destination vertex is this transaction
+     */
+    public void removeTransactionFromWaitsForGraph(int transactionId) {
+        waitsForGraph.remove(transactionId);
+        for (int sourceVertex : waitsForGraph.keySet()) {
+            Set<Integer> destinationVertice = waitsForGraph.get(sourceVertex);
+            destinationVertice.remove(transactionId);
+        }
     }
 
     public void deadLockDetection() {
