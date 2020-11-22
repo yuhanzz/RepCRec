@@ -11,6 +11,7 @@ public class TransactionManager {
     /**
      * if the read is successful, will return true, and output the message, might change the lock status
      * if the read failed , will return false, might change the waitsForGraph
+     * will set new status for transaction
      */
     public boolean read(int transactionId, int variableId) {
         Transaction transaction = transactions.get(transactionId);
@@ -23,10 +24,12 @@ public class TransactionManager {
             Map<Integer, Integer> snapshot = snapshots.get(transactionId);
             // if snapshot is missing this part
             if (!snapshot.containsKey(variableId)) {
+                transaction.setStatus(TransactionStatus.BLOCKED);
                 return false;
             }
             value = snapshot.get(variableId);
             System.out.println("x" + variableId + ": " + value);
+            transaction.setStatus(TransactionStatus.ACTIVE);
             return true;
         }
 
@@ -71,10 +74,12 @@ public class TransactionManager {
         }
 
         if (value == null) {
+            transaction.setStatus(TransactionStatus.BLOCKED);
             return false;
         }
 
         System.out.println("x" + variableId + ": " + value);
+        transaction.setStatus(TransactionStatus.ACTIVE);
         return true;
     }
 
@@ -82,6 +87,7 @@ public class TransactionManager {
      * write to all the available copies
      * return false if waiting for locks or all sites are down
      * may change the waitsForGraph, and transaction's holding locks
+     * will set new status for transaction
      */
     public boolean write(int transactionId, int variableId, int value) {
         Transaction transaction = transactions.get(transactionId);
@@ -103,7 +109,12 @@ public class TransactionManager {
                 site.write(variableId, value);
                 upSites++;
             }
-            return upSites > 0;
+            if (upSites > 0) {
+                transaction.setStatus(TransactionStatus.ACTIVE);
+                return true;
+            }
+            transaction.setStatus(TransactionStatus.BLOCKED);
+            return false;
         }
 
         // check write lock availability
@@ -132,10 +143,12 @@ public class TransactionManager {
         }
 
         if (!writeLockAvailable) {
+            transaction.setStatus(TransactionStatus.BLOCKED);
             return false;
         }
 
         if (upSites == 0) {
+            transaction.setStatus(TransactionStatus.BLOCKED);
             return false;
         }
 
@@ -150,19 +163,60 @@ public class TransactionManager {
         }
 
         transaction.addLock(LockType.WRITE, variableId);
-
+        transaction.setStatus(TransactionStatus.ACTIVE);
         return true;
     }
 
-    public boolean commit() {
+    /**
+     * two phase commit
+     * will set new status for transaction
+     */
+    public boolean commit(int transactionId, int currentTime) {
+        Transaction transaction = transactions.get(transactionId);
+        Map<Integer, Integer> accessedSites = transaction.getAccessedSites();
 
-        // remove from the transactions list
+        // if read-only transaction
+        if (transaction.isReadOnly()) {
+            transaction.setStatus(TransactionStatus.COMMITED);
+            return true;
+        }
 
-        // call retry becasue there might be newly written committed value to recovered sites, and new available locks
+        // if read-write transaction, two phase commit
+        boolean canCommit = true;
+
+        // concensus
+        for (int siteId : accessedSites.keySet()) {
+            Site site = sites.get(siteId);
+            int firstAccessTime = accessedSites.get(siteId);
+            if (!site.commitReady(firstAccessTime)) {
+                canCommit = false;
+                break;
+            }
+        }
+
+        // if can not commit, abort
+        if (!canCommit) {
+            abort(transactionId);
+            return false;
+        }
+
+        // successfully committed
+        transaction.setStatus(TransactionStatus.COMMITED);
+        return true;
     }
 
-    public void abort() {
+    /**
+     * will set new status for transaction
+     */
+    public void abort(int transactionId) {
+        Transaction transaction = transactions.get(transactionId);
+        Map<Integer, Integer> accessedSites = transaction.getAccessedSites();
 
+        for (int siteId : accessedSites.keySet()) {
+            Site site = sites.get(siteId);
+            site.abort(transactionId);
+        }
+        transaction.setStatus(TransactionStatus.ABORTED);
     }
 
     public void begin() {
@@ -171,6 +225,14 @@ public class TransactionManager {
 
     public void beginRO() {
         // take snapshot
+    }
+
+    /**
+     * 
+     */
+
+    public void removeTransactionFromWaitsForGraph(int transactionId) {
+
     }
 
     /**
@@ -190,9 +252,15 @@ public class TransactionManager {
 
         // update the waitsForGraph accordingly (add edge if read/write failed, remove edge if commit/abort)
 
-        // update the transaction status
 
         // return false if read / write failed
+
+        // if read, write succeeded, call transaction.addAccessedSite()
+        
+        // if commit/abort, call removeTransactionFromWaitsForGraph(transactionId)
+
+        // retry if necessary
+
     }
 
     public void handleRequest() {

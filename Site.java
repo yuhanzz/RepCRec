@@ -98,7 +98,7 @@ class Site {
     }
 
     /**
-     * abort this transaction on this site
+     * abort this transaction on this site if the site is UP, do nothing is the site is DOWN
      */
     public void abort(int transactionId) {
         lockManager.releaseAllLocks(transactionId);
