@@ -125,7 +125,10 @@ class Site {
         
     }
 
-    public void fail(int time) {
+    /**
+     * return the curren time after site fail event
+     */
+    public int fail(int time) {
 
         // change the site status
         siteStatus = SiteStatus.DOWN;
@@ -139,13 +142,20 @@ class Site {
         {
             dataManager.updateReadAvail(item, false);
         }
+
+        return time + 1;
     }
     
-    public void recover() {
+    /**
+     * return the time after recover finishes
+     */
+    public int recover(int time) {
 
         // change the site status
         siteStatus = SiteStatus.UP;
         // for all the non-replicated data copies on this site, set its readAvailable to true
         dataManager.setAllNonReplicatedReadAvail(true);
+
+        return time + 1;
     }
 }

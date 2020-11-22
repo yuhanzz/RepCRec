@@ -249,19 +249,20 @@ public class TransactionManager {
 
     /**
      * make up the missing part of each snapshot immediately when received site recover notice
+     * return the current time
     */
-    public void receiveRecoverNotice(int siteId) {
+    public int receiveRecoverNotice(int siteId, int currentTime) {
         Site site = sites.get(siteId);
         Map<Integer, Integer> newSnapshot = site.takeSnapShot();
 
         if (newSnapshot.isEmpty()) {
-            return;
+            return currentTime;
         }
         
         // Make up the missing part of the snapshots that are already taken
-        for (int trasacntionId : snapshots.entrySet()) {
+        for (int transactionId : snapshots.entrySet()) {
 
-            Map<Integer, Integer> takenSnapshot = snapshots.get(trasacntionId);
+            Map<Integer, Integer> takenSnapshot = snapshots.get(transactionId);
 
             for (int variableId : newSnapshot.keySet()) {
                 // only update the snapshot if this variable in that snapshot is missing
@@ -271,7 +272,7 @@ public class TransactionManager {
             }
         }
 
-        retry();
+        return retry(currentTime);
     }
 
     /**
@@ -305,7 +306,10 @@ public class TransactionManager {
         return executionSuccessful;
     }
 
-    public void handleRequest(Operation operation, int currentTime) {
+    /**
+     * return the time to finish this request
+     */
+    public int handleRequest(Operation operation, int currentTime) {
         Transaction transaction = transactions.get(operation.transactionId);
 
         // if the transaction is currently blocked, add this operation to pending list
@@ -318,25 +322,51 @@ public class TransactionManager {
         boolean executionSuccessful = execute(operation, currentTime);
 
         if (executionSuccessful) {
-            // if execution is successful, there could be potential unblocked transactions
-            retry();
+            // if execution is successful, increase current time, and retry because there could be potential unblocked operations
+            return retry(currentTime + 1);
         } else {
             // if execution is not successful, add the operation to pending list
             pendingList.add(operation);
+            return currentTime;
         }
     }
 
     /**
-     * iterate through the pending list and retry 
+     * iterate through the pending list and retry, and return the time after retry
      */
-    public void retry() {
-        // maintain a set of blocked transaction, initally the set is empty
-        
-        // retry every operation that is not in blocked set by calling execute
-        
-        // if retry failed, add its transaction to blocked set
+    public int retry(int currentTime) {
+        // maintain a set of transaction that are still blcoked, initally the set is empty
+        Set<Integer> remainBlockedTransactions = new HashSet<>();
 
-        // if retry succeeded, change transaction status to ACTIVE, remove this operation from the pending list 
+        // the finished operations
+        Set<Operation> finishedOperations = new HashSet<>();
+
+        // retry every operation that is not in blocked set by calling execute
+        for (Operation operation : pendingList) {
+            int transactionId = operation.transactionId;
+
+            if (remainBlockedTransactions.contains(transactionId)) {
+                continue;
+            }
+
+            boolean retrySuccessful = execute(operation, currentTime);
+
+            if (retrySuccessful) {
+                currentTime++;
+                finishedOperations.add(operation);
+            } else {
+                // if retry failed, add its transaction to blocked set
+                remainBlockedTransactions.add(transactionId);
+            }
+
+        }
+
+        // remove all the finished operations from pending list
+        for (Operation operation : finishedOperations) {
+            pendingList.remove(operation);
+        }
+
+        return currentTime;
     }
 
     /**
