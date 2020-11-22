@@ -54,7 +54,19 @@ public class LockManager {
      * release all the locks that this transaction has
      */
     void releaseAllLocks(int transactionId) {
-
+        Set<Map.Entry<Integer, Set<Pair<Integer,LockType>>>> entrySet = lockTable.entrySet();
+        for(Map.Entry<Integer, Set<Pair<Integer,LockType>>> entry: entrySet)
+        {
+            Set<Pair<Integer,LockType>> locks = new HashSet<>(entry.getValue());
+            for(Pair<Integer,LockType> lock: entry.getValue())
+            {
+                if(lock.getKey() == transactionId)
+                {
+                    locks.remove(lock);
+                }
+            }
+            lockTable.put(entry.getKey(),locks);
+        }
     }
 
     /**

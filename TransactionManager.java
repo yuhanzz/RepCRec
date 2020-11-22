@@ -1,3 +1,4 @@
+import java.util.*;
 public class TransactionManager {
 
     private Map<Integer, Site> sites;    // <key : siteId, value : site>
@@ -222,7 +223,7 @@ public class TransactionManager {
             Site site = sites.get(siteId);
             site.abort(transactionId);
         }
-        removeTransactionFromWaitsForGraph(transactionId)
+        removeTransactionFromWaitsForGraph(transactionId);
         transaction.setStatus(TransactionStatus.ABORTED);
     }
 
@@ -381,6 +382,45 @@ public class TransactionManager {
     }
 
     public void deadLockDetection() {
+        boolean hasCycle = true;
+        while(hasCycle)
+        {
+            int victim = Integer.MAX_VALUE;
+            // use waits graph to detect cycle and choose a victim, if no cycle, set hasCycle = false
+            Set<Map.Entry<Integer, Set<Integer>>> entrySet = waitsForGraph.entrySet();
+            for(Map.Entry<Integer, Set<Integer>> entry: entrySet)
+            {
+                for(Integer transaction: entry.getValue())
+                {
+                    if(waitsForGraph.get(transaction).contains(entry.getKey()))
+                    {
+                        Transaction t1 = transactions.get(entry.getKey());
+                        Transaction t2 = transactions.get(transaction);
+                        if(t1.getBeginTime() < t2.getBeginTime())
+                        {
+                            victim = entry.getKey();
+                            break;
+                        }
+                        else
+                        {
+                            victim = transaction;
+                            break;
+                        }
+                    }
+                }
+                if(victim != Integer.MAX_VALUE)
+                {
+                    abort(victim);
+                    break;
+                }
+            }
+            if(victim == Integer.MAX_VALUE)
+            {
+                hasCycle = false;
+            }
+        }
+
+
 
     }
 

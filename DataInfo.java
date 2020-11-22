@@ -1,7 +1,7 @@
 /**
  * records all the information that the transaction manager needs to know about a variable
  */
-
+import java.util.*;
 public final class DataInfo {
 
     private final DataType type;
