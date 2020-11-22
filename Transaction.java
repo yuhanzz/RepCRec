@@ -1,3 +1,4 @@
+import java.util.*;
 /**
  * records all the information that the transaction manager needs to know about a transaction
  */
@@ -17,6 +18,10 @@ public class Transaction{
         this.status = TransactionStatus.ACTIVE;
         this.accessedSites = new HashMap<>();
         this.holdingLocks = new HashMap<>();
+    }
+
+    public int getBeginTime() {
+        return beginTime;
     }
 
     /**
