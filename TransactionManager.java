@@ -249,10 +249,28 @@ public class TransactionManager {
     }
 
     /**
-     * make up the missing part of each snapshot immediately
+     * make up the missing part of each snapshot immediately when received site recover notice
     */
-    public void receiveRecoverNotice() {
+    public void receiveRecoverNotice(int siteId) {
+        Site site = sites.get(siteId);
+        Map<Integer, Integer> newSnapshot = site.takeSnapShot();
 
+        if (newSnapshot.isEmpty()) {
+            return;
+        }
+        
+        // Make up the missing part of the snapshots that are already taken
+        for (int trasacntionId : snapshots.entrySet()) {
+
+            Map<Integer, Integer> takenSnapshot = snapshots.get(trasacntionId);
+
+            for (int variableId : newSnapshot.keySet()) {
+                // only update the snapshot if this variable in that snapshot is missing
+                if (!takenSnapshot.containsKey(variableId)) {
+                    takenSnapshot.put(variableId, newSnapshot.get(variableId));
+                }
+            }
+        }
     }
 
     /**
