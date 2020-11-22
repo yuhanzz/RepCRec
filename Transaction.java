@@ -13,11 +13,11 @@ public class Transaction{
      * 
      */
 
-    public void addAccessedSite(int firstAccessTime, int transactionId) {
-        if (accessedSites.containsKey(transactionId)) {
+    public void addAccessedSite(int firstAccessTime, int siteId) {
+        if (accessedSites.containsKey(siteId)) {
             return;
         }
-        accessedSites.put(transactionId, firstAccessTime);
+        accessedSites.put(siteId, firstAccessTime);
     }
 
     public Map<Integer, Integer> getAccessedSites() {

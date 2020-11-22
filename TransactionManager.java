@@ -11,9 +11,10 @@ public class TransactionManager {
     /**
      * if the read is successful, will return true, and output the message, might change the lock status
      * if the read failed , will return false, might change the waitsForGraph
+     * may change a transaction's accessedSite
      * will set new status for transaction
      */
-    public boolean read(int transactionId, int variableId) {
+    public boolean read(int transactionId, int variableId, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
         DataInfo dataInfo = dataCollection.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
@@ -68,6 +69,7 @@ public class TransactionManager {
 
             // if can acquire read lock
             site.acquireLock(LockType.READ, transactionId, variableId);
+            transaction.addAccessedSite(currentTime, siteId);
             transaction.addLock(LockType.READ, variableId);
             value = site.read(variableId);
             break;
@@ -87,9 +89,10 @@ public class TransactionManager {
      * write to all the available copies
      * return false if waiting for locks or all sites are down
      * may change the waitsForGraph, and transaction's holding locks
+     * may change a transaction's accessedSite
      * will set new status for transaction
      */
-    public boolean write(int transactionId, int variableId, int value) {
+    public boolean write(int transactionId, int variableId, int value, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
         DataInfo dataInfo = dataCollection.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
@@ -159,6 +162,7 @@ public class TransactionManager {
                 continue;
             }
             site.acquireLock(LockType.WRITE, transactionId, variableId);
+            transaction.addAccessedSite(currentTime, siteId);
             site.write(variableId, value);
         }
 
@@ -169,6 +173,7 @@ public class TransactionManager {
 
     /**
      * two phase commit
+     * will change waitsForGraph
      * will set new status for transaction
      */
     public boolean commit(int transactionId, int currentTime) {
@@ -201,11 +206,13 @@ public class TransactionManager {
         }
 
         // successfully committed
+        removeTransactionFromWaitsForGraph(transactionId)
         transaction.setStatus(TransactionStatus.COMMITED);
         return true;
     }
 
     /**
+     * will change waitsForGraph
      * will set new status for transaction
      */
     public void abort(int transactionId) {
@@ -216,6 +223,7 @@ public class TransactionManager {
             Site site = sites.get(siteId);
             site.abort(transactionId);
         }
+        removeTransactionFromWaitsForGraph(transactionId)
         transaction.setStatus(TransactionStatus.ABORTED);
     }
 
@@ -254,11 +262,7 @@ public class TransactionManager {
 
 
         // return false if read / write failed
-
-        // if read, write succeeded, call transaction.addAccessedSite()
         
-        // if commit/abort, call removeTransactionFromWaitsForGraph(transactionId)
-
         // retry if necessary
 
     }
