@@ -199,9 +199,8 @@ public class TransactionManager {
             }
         }
 
-        // if can not commit, abort
+        // if can not commit
         if (!canCommit) {
-            abort(transactionId);
             return false;
         }
 
@@ -271,32 +270,60 @@ public class TransactionManager {
                 }
             }
         }
+
+        retry();
     }
 
     /**
-     * responsible for updating the transaction status
-     * responsible for updating waitsForGraph
+     * 
      */
-    public boolean execute(Operation operation) {
+    public boolean execute(Operation operation, int currentTime) {
+        boolean executionSuccessful = true;
+        switch(operation.type) {
+            case OperationType.BEGIN:
+                begin(operation.transactionId, currentTime);
+                break;
+            case OperationType.BEGIN_READ_ONLY:
+                beginRO(operation.transactionId, currentTime);
+                break;
+            case OperationType.COMMIT:
+                {
+                    boolean commitSuccessful = commit(operation.transactionId, currentTime);
+                    if (!commitSuccessful) {
+                        abort(operation.transactionId);
+                    }
+                }
+                break;
+            case OperationType.READ:
+                executionSuccessful = read(operation.transactionId, operation.variableId, currentTime);
+                break;
+            case OperationType.WRITE:
+                executionSuccessful = write(operation.transactionId, operation.variableId, operation.valueToWrite, currentTime);
+                break;
+        }
 
-        // call the corresponding method(read/write/commit ...if commit failed, call abort )
-
-        // update the waitsForGraph accordingly (add edge if read/write failed, remove edge if commit/abort)
-
-
-        // return false if read / write failed
-        
-        // retry if necessary
-
+        return executionSuccessful;
     }
 
-    public void handleRequest() {
+    public void handleRequest(Operation operation, int currentTime) {
+        Transaction transaction = transactions.get(operation.transactionId);
 
-        // if transaction status is blocked, then add the operation to pending list and return
+        // if the transaction is currently blocked, add this operation to pending list
+        if (transaction.getStatus() == TransactionStatus.BLOCKED) {
+            pendingList.add(operation);
+            return;
+        }
 
         // call execute
+        boolean executionSuccessful = execute(operation, currentTime);
 
-        // if execute return false, mark this transaction as BLOCKED, and add the operation to pending list
+        if (executionSuccessful) {
+            // if execution is successful, there could be potential unblocked transactions
+            retry();
+        } else {
+            // if execution is not successful, add the operation to pending list
+            pendingList.add(operation);
+        }
     }
 
     /**

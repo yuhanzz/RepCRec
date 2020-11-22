@@ -68,4 +68,8 @@ public class Transaction{
     public void setStatus(TransactionStatus status) {
         this.status = status;
     }
+
+    public TransactionStatus getStatus() {
+        return status;
+    }
 }
