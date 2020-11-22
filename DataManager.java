@@ -1,3 +1,5 @@
+import java.util.*;
+
 public class DataManager {
     Map<Integer, DataCopy> dataCopies;  // <key : variable id, value : data copy>
 
@@ -11,7 +13,7 @@ public class DataManager {
     /**
      * read the latest committed value for snapshot purpose
      */
-    public int readCommittedValue() {
+    public int readCommittedValue(Integer variableId) {
 
     }
 
@@ -25,15 +27,51 @@ public class DataManager {
     /**
      * write the current value
      */
-    public void write(int transactionId, int variableId, int value) {
+    public void write(int variableId, int value) {
 
     }
 
     /**
      * read the current value
      */
-    public void read() {
+    public int read(int variableId) {
         
     }
+
+    /**
+     * Update the readAvailable to what is specified
+     */
+    public void updateReadAvail(int variableId,boolean avail)
+    {
+        DataCopy dCopy = dataCopies.get(variableId);
+        dCopy.setReadAvailable(avail);
+    }
+
+
+    public Set<Integer> getAllReadAvail()
+    {
+        Set<Integer> variableIds = new HashSet<>(); 
+        for(Integer variable: dataCopies.keySet())
+        {
+            if(dataCopies.get(variable).isReadAvailable())
+            {
+                variableIds.add(variable);
+            }
+        }
+        return variableIds;
+    }
     
+
+    public void setAllNonReplicatedReadAvail(boolean avail)
+    {
+        // Set<Map.Entry<Integer,DataCopy>> = dataCopies.entrySet();
+        // for(: )
+        // {
+        //     DataCopy dCopy = dataCopies.get(variable);
+        //     if(dCopy.getDataType() == DataType.NOT_REPLICATED)
+        //     {
+        //         dCopy.setReadAvailable(avail);
+        //     }
+        // }
+    }
 }

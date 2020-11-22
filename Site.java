@@ -1,3 +1,4 @@
+import java.util.*;
 class Site {
     DataManager dataManager;
     LockManager lockManager;
@@ -52,28 +53,28 @@ class Site {
      * change the lock table accordingly
      */
     public void acquireLock(LockType lockType, int transactionId, int variableId) {
-
+        lockManager.addLock(lockType, transactionId, variableId);
     }
 
     /**
-     * return the curren value of the data copy
+     * return the current value of the data copy
      */
     public int read(int variableId) {
-
+        return dataManager.read(variableId); 
     }
 
     /**
      * change the current value of the data copy
      */
     public void write(int variableId, int value) {
-
+        dataManager.write(variableId, value);
     }
 
     /**
      * return true if Site is UP and firstAccessTime is larger than latestFailedTime
      */
     public boolean commitReady(int firstAccessTime) {
-
+        return siteStatus == SiteStatus.UP && firstAccessTime > latestFailedTime;
     }
 
     /**
@@ -82,42 +83,70 @@ class Site {
     public void commit(int transactionId) {
 
         // update the current value to committed value (only update the variables that this transaction has write lock on)
-
         // if the readAvailable of this data copy is false, change it to true (only update the variables that this transaction has write lock on)
-
         // release all the locks
+        Set<Integer> writeLocks = lockManager.getAllWrittenVariables(transactionId);
+        for(Integer variableId: writeLocks)
+        {
+            dataManager.commitVariable(variableId);
+            if(dataManager.readAvailable(variableId))
+            {
+                dataManager.updateReadAvail(variableId, true);
+            }
+        }
+        lockManager.releaseAllLocks(transactionId);
     }
 
     /**
      * abort this transaction on this site
      */
     public void abort(int transactionId) {
-        
+        lockManager.releaseAllLocks(transactionId);
         // release all the locks
     }
 
     public Map<Integer, Integer> takeSnapShot() {
         // if the site is down, return empty set
-
         // for all the data items in this site whose readAvailable is true, we send its committed value
+        Map<Integer, Integer> map = new HashMap<>();
+        if(siteStatus == SiteStatus.DOWN)
+        {
+            return map;
+        }
+        else
+        {
+            Set<Integer> items = dataManager.getAllReadAvail();
+            for(Integer item: items)
+            {
+                map.put(item,dataManager.readCommittedValue(item));
+            }
+        }
+        return map;
+        
     }
 
-    public void fail() {
+    public void fail(int time) {
 
         // change the site status
-
+        siteStatus = SiteStatus.DOWN;
         // remove all the locks on this site
-
+        lockManager.clear();
         // set the latestFailedTime to current time
-
+        latestFailedTime = time;
         // set the readAvailable of all the data copies as false
+        Set<Integer> set = dataManager.getAllReadAvail();
+        for(Integer item: set)
+        {
+            dataManager.updateReadAvail(item, false);
+        }
     }
     
     public void recover() {
 
         // change the site status
-
+        siteStatus = SiteStatus.UP;
         // for all the non-replicated data copies on this site, set its readAvailable to true
+        
 
     }
 }
