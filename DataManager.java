@@ -1,7 +1,5 @@
 import java.util.*;
 
-import javax.xml.crypto.Data;
-
 public class DataManager {
     Map<Integer, DataCopy> dataCopies;  // <key : variable id, value : data copy>
 
@@ -9,35 +7,42 @@ public class DataManager {
      * return true if this copy is available for read
      */
     public boolean readAvailable(int variableId) {
-        
+        DataCopy dCopy = dataCopies.get(variableId);
+        if(dCopy.isReadAvailable()) return true;
+        return false;
     }
 
     /**
      * read the latest committed value for snapshot purpose
      */
     public int readCommittedValue(Integer variableId) {
-
+        DataCopy dCopy = dataCopies.get(variableId);
+        return dCopy.getCommittedValue();
     }
 
     /**
      * update the committed value with its current value
      */
     public void commitVariable(int variableId) {
-
+        DataCopy dCopy = dataCopies.get(variableId);
+        int currValue = dCopy.getCurrentValue();
+        dCopy.setCommittedValue(currValue);
     }
 
     /**
      * write the current value
      */
     public void write(int variableId, int value) {
-
+        DataCopy dCopy = dataCopies.get(variableId);
+        dCopy.setCurrentValue(value);
     }
 
     /**
      * read the current value
      */
     public int read(int variableId) {
-        
+        DataCopy dCopy = dataCopies.get(variableId);
+        return dCopy.getCurrentValue();
     }
 
     /**
@@ -55,7 +60,7 @@ public class DataManager {
         Set<Integer> variableIds = new HashSet<>(); 
         for(Integer variable: dataCopies.keySet())
         {
-            if(dataCopies.get(variable).isReadAvailable())
+            if(readAvailable(variable))
             {
                 variableIds.add(variable);
             }
