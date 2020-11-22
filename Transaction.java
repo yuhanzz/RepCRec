@@ -9,6 +9,16 @@ public class Transaction{
     private Map<Integer, Integer> accessedSites; // <key : accessed site id, value : firstAccessedTiem>
     private Map<Integer, LockType> holdingLocks;
 
+
+    public Transaction(int id, int beginTime, TransactionType type) {
+        this.id = id;
+        this.beginTime = beginTime;
+        this.type = type;
+        this.status = TransactionStatus.ACTIVE;
+        this.accessedSites = new HashMap<>();
+        this.holdingLocks = new HashMap<>();
+    }
+
     /**
      * 
      */

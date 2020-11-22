@@ -5,7 +5,7 @@ public class TransactionManager {
     private Map<Integer, DataInfo> dataCollection;  // <key : variableId, value : data information>
     private List<Operation> pendingList;
     private Map<Integer, Set<Integer>> waitsForGraph;
-    private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the timestamp, the value is the snapshot
+    private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the transaction id, the value is the snapshot
 
 
     /**
@@ -227,12 +227,25 @@ public class TransactionManager {
         transaction.setStatus(TransactionStatus.ABORTED);
     }
 
-    public void begin() {
-
+    public void begin(int transactionId, int currentTime) {
+        Transaction transaction = new Transaction(transactionId, currentTime, TransactionType.READ_WRITE);
+        transactions.put(transactionId, transaction);
     }
 
-    public void beginRO() {
+    public void beginRO(int transactionId, int currentTime) {
+        Transaction transaction = new Transaction(transactionId, currentTime, TransactionType.READ_ONLY);
+        transactions.put(transactionId, transaction);
+
         // take snapshot
+        Map<Integer, Integer> snapshot = new HashMap<>();
+        for (int siteId : sites.keySet()) {
+            Site site = sites.get(siteId);
+            Map<Integer, Integer> snapshotFromEachSite = site.takeSnapShot();
+            for (int variableId : snapshotFromEachSite.keySet()) {
+                snapshot.put(variableId, snapshotFromEachSite.get(variableId));
+            }
+        }
+        snapshots.put(transactionId, snapshot);
     }
 
     /**
