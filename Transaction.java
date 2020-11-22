@@ -6,8 +6,23 @@ public class Transaction{
     public int beginTime;
     private TransactionType type;
     public TransactionStatus status;
-    private Set<Integer> accessedSites;
+    private Map<Integer, Integer> accessedSites; // <key : accessed site id, value : firstAccessedTiem>
     private Map<Integer, LockType> holdingLocks;
+
+    /**
+     * 
+     */
+
+    public void addAccessedSite(int firstAccessTime, int transactionId) {
+        if (accessedSites.containsKey(transactionId)) {
+            return;
+        }
+        accessedSites.put(transactionId, firstAccessTime);
+    }
+
+    public Map<Integer, Integer> getAccessedSites() {
+        return accessedSites;
+    }
 
     /**
      * return true if the current transaction is holding a required lock, or a higher rank lock
@@ -38,5 +53,9 @@ public class Transaction{
             return;
         }
         holdingLocks.put(variableId, lockType);
+    }
+
+    public void setStatus(TransactionStatus status) {
+        this.status = status;
     }
 }
