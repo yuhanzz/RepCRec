@@ -382,46 +382,94 @@ public class TransactionManager {
     }
 
     public void deadLockDetection() {
-        boolean hasCycle = true;
+        boolean hasCycle = true; 
         while(hasCycle)
         {
-            int victim = Integer.MAX_VALUE;
-            // use waits graph to detect cycle and choose a victim, if no cycle, set hasCycle = false
-            Set<Map.Entry<Integer, Set<Integer>>> entrySet = waitsForGraph.entrySet();
-            for(Map.Entry<Integer, Set<Integer>> entry: entrySet)
-            {
-                for(Integer transaction: entry.getValue())
-                {
-                    if(waitsForGraph.get(transaction).contains(entry.getKey()))
-                    {
-                        Transaction t1 = transactions.get(entry.getKey());
-                        Transaction t2 = transactions.get(transaction);
-                        if(t1.getBeginTime() < t2.getBeginTime())
-                        {
-                            victim = entry.getKey();
-                            break;
-                        }
-                        else
-                        {
-                            victim = transaction;
-                            break;
-                        }
-                    }
-                }
-                if(victim != Integer.MAX_VALUE)
-                {
-                    abort(victim);
-                    break;
-                }
-            }
-            if(victim == Integer.MAX_VALUE)
+            Set<Integer> cycle = detect(waitsForGraph);
+            if(cycle.isEmpty())
             {
                 hasCycle = false;
             }
+            else
+            {
+                int victim = -1;
+                int minTime = Integer.MAX_VALUE; 
+                for(Integer transaction: cycle)
+                {
+                    if(transactions.get(transaction).getBeginTime() < minTime)
+                    {
+                        victim = transaction;
+                        minTime = transactions.get(transaction).getBeginTime();
+                    }
+                }
+                abort(victim);
+            }
+        }
+        
+    }
+
+    public Set<Integer> detect(Map<Integer, Set<Integer>> transactions)
+    {
+        Map<Integer,Integer> degree = new HashMap<>();
+        Map<Integer,Set<Integer>> children = new HashMap<>();
+
+        for (Integer tx : transactions.keySet())
+        {
+            degree.put(tx, transactions.get(tx).size());
+            if (!children.containsKey(tx))
+            {
+                children.put(tx, new HashSet<>());
+            }
+
+            for (Integer parent : transactions.get(tx))
+            {
+                Set<Integer> dependent = children.getOrDefault(parent, new HashSet<>());
+                dependent.add(tx);
+            }
         }
 
+        Queue<Integer> queue = new LinkedList<>();
+        for (Integer key : children.keySet())
+        {
+            if (degree.get(key) == 0)
+            {
+                queue.offer(key);
+            }
+        }
 
+        int count = queue.size();
 
+        while (!queue.isEmpty())
+        {
+            int tx = queue.poll();
+            for (Integer child : children.get(tx))
+            {
+                int d = degree.get(child);
+                if (d > 0)
+                {
+                    degree.put(child, d - 1);
+                    if (d == 1)
+                    {
+                        queue.offer(child);
+                        count++;
+                    }
+                }
+            }
+        }
+
+        Set<Integer> result = new HashSet<>();
+        if (count < transactions.size())
+        {
+            for (Integer key : degree.keySet())
+            {
+                if (degree.get(key) != 0)
+                {
+                    result.add(key);
+                }
+            }
+        }
+
+        return result;
     }
 
     /**
