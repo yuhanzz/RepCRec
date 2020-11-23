@@ -31,25 +31,14 @@ class Site {
 
     /**
      * return the empty set if can acquire this lock
-     * return the set of conflicting transactions if failed
+     * return the set of conflicting transactions if can not
      */
     public Set<Integer> lockAvailable(LockType lockType, int variableId) {
-        Set<Integer> conflictingTransactions = new HashSet<>(); 
         if(lockType == LockType.READ)
         {
-            if(readAvailable(variableId))
-            {
-                return conflictingTransactions;
-            }
+            return lockManager.readLockAvailable(variableId);
         }
-        else
-        {
-            if(lockManager.getAllTrasactionIDS(variableId).isEmpty())
-            {
-                return conflictingTransactions;
-            }
-        }
-        return lockManager.getAllTrasactionIDS(variableId);
+        return lockManager.writeLockAvailable(variableId);
     }
 
     /**

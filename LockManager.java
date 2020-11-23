@@ -2,32 +2,60 @@ import java.util.*;
 import javafx.util.Pair;
 public class LockManager {
 
-    private Map<Integer,Set<Pair<Integer,LockType>>> lockTable;
+    private Map<Integer, Map<Integer,LockType>> lockTable;
 
     public LockManager(){
         this.lockTable = new HashMap<>();
     }
 
-    public Set<Integer> getAllTrasactionIDS(int variableID)
-    {
-        Set<Integer> transactionIDS = new HashSet<>();
-        Set<Pair<Integer,LockType>> list = lockTable.get(variableID);
-        for(Pair<Integer,LockType> pair: list)
-        {
-            transactionIDS.add(pair.getKey());
-        }
-        return transactionIDS;
+    /**
+     * return empty set if can acquire read lock on this variable
+     * return the set of conflicting transactions if can not acquire read lock on this variable
+     */
+    public Set<Integer> readLockAvailable(int variableId) {
+        Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
 
+        for (int transactionId : locks.keySet()) {
+            if (locks.get(transactionId) == LockType.WRITE) {
+                // there could only be one transaction holding a write lock on this variable
+                Set<Integer> conflictingTransactions = new HashSet<>();
+                conflictingTransactions.add(transactionId);
+                return conflictingTransactions;
+            }
+        }
+
+        return new HashSet<>();
     }
 
+    /**
+     * return empty set if can acquire write lock on this variable
+     * return the set of conflicting transactions if can not acquire write lock on this variable
+     */
+
+    public Set<Integer> writeLockAvailable(int variableId) {
+        Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
+        Set<Integer> conflictingTransactions = new HashSet<>();
+
+        for (int transactionId : locks.keySet()) {
+            conflictingTransactions.add(transactionId);
+        }
+        return conflictingTransactions;
+    }
+
+    /**
+     * upgrade an existing lock or add a new lock
+     */
     public void addLock(LockType lockType, int transactionId, int variableId)
     {
-        Set<Pair<Integer,LockType>> set = lockTable.get(variableId);
-        Pair<Integer,LockType> pair = new Pair<>(transactionId,lockType);
-        if(!set.contains(pair))
-        {
-            set.add(pair);
+        // obtain all the locks on this variable
+        Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
+
+        // may add a new lock or upgrade an existing lock
+        if (!locks.containsKey(transactionId) || lockType == LockType.WRITE) {
+            locks.put(transactionId, lockType);
         }
+
+        lockTable.put(variableId, locks);
     }
 
     /**
@@ -38,13 +66,9 @@ public class LockManager {
         Set<Integer> variableIds= lockTable.keySet(); 
         for(Integer variableId: variableIds)
         {
-            Set<Pair<Integer,LockType>> locks = lockTable.get(variableId);
-            for(Pair<Integer,LockType>> p: locks)
-            {
-                if(p.getKey() == transactionId && p.getValue() == LockType.WRITE)
-                {
-                    set.add(variableId);
-                }
+            Map<Integer, LockType> locks = lockTable.get(variableId);
+            if (locks.get(transactionId) == LockType.WRITE) {
+                set.add(variableId);
             }
         }
         return set;
@@ -54,18 +78,9 @@ public class LockManager {
      * release all the locks that this transaction has
      */
     void releaseAllLocks(int transactionId) {
-        Set<Map.Entry<Integer, Set<Pair<Integer,LockType>>>> entrySet = lockTable.entrySet();
-        for(Map.Entry<Integer, Set<Pair<Integer,LockType>>> entry: entrySet)
-        {
-            Set<Pair<Integer,LockType>> locks = new HashSet<>(entry.getValue());
-            for(Pair<Integer,LockType> lock: entry.getValue())
-            {
-                if(lock.getKey() == transactionId)
-                {
-                    locks.remove(lock);
-                }
-            }
-            lockTable.put(entry.getKey(),locks);
+        for (int variableId : lockTable.keySet()) {
+            Map<Integer, LockType> locks = lockTable.get(variableId);
+            locks.remove(transactionId);
         }
     }
 
