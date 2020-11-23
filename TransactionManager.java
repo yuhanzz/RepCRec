@@ -3,7 +3,7 @@ public class TransactionManager {
 
     private Map<Integer, Site> sites;    // <key : siteId, value : site>
     private Map<Integer, Transaction> transactions; // <key : transactionId, value : transaction>
-    private Map<Integer, DataInfo> dataCollection;  // <key : variableId, value : data information>
+    private Map<Integer, DataInfo> dataLocation;  // <key : variableId, value : data information>
     private List<Operation> pendingList;
     private Map<Integer, Set<Integer>> waitsForGraph;
     private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the transaction id, the value is the snapshot
@@ -17,7 +17,7 @@ public class TransactionManager {
      */
     public boolean read(int transactionId, int variableId, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
-        DataInfo dataInfo = dataCollection.get(variableId);
+        DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
         Integer value = null;
 
@@ -56,7 +56,7 @@ public class TransactionManager {
             }
 
             // if need to acquire read lock
-            Set<Integer> conflictingTransactions = lockAvailable(LockType.READ, variableId)
+            Set<Integer> conflictingTransactions = site.lockAvailable(LockType.READ, variableId);
 
             // if can not acquire read lock
             if (!conflictingTransactions.isEmpty()) {
@@ -95,7 +95,7 @@ public class TransactionManager {
      */
     public boolean write(int transactionId, int variableId, int value, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
-        DataInfo dataInfo = dataCollection.get(variableId);
+        DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
         int upSites = 0;
 
@@ -133,7 +133,7 @@ public class TransactionManager {
 
             upSites++;
 
-            Set<Integer> conflictingTransactions = lockAvailable(LockType.WRITE, variableId)
+            Set<Integer> conflictingTransactions = site.lockAvailable(LockType.WRITE, variableId);
 
             // if can not acquire write lock, add all conflicting transactions to the waitsForGraph
             if (!conflictingTransactions.isEmpty()) {
@@ -206,7 +206,7 @@ public class TransactionManager {
         }
 
         // successfully committed
-        removeTransactionFromWaitsForGraph(transactionId)
+        removeTransactionFromWaitsForGraph(transactionId);
         transaction.setStatus(TransactionStatus.COMMITED);
         return true;
     }
@@ -261,7 +261,7 @@ public class TransactionManager {
         }
         
         // Make up the missing part of the snapshots that are already taken
-        for (int transactionId : snapshots.entrySet()) {
+        for (int transactionId : snapshots.keySet()) {
 
             Map<Integer, Integer> takenSnapshot = snapshots.get(transactionId);
 
@@ -282,13 +282,13 @@ public class TransactionManager {
     public boolean execute(Operation operation, int currentTime) {
         boolean executionSuccessful = true;
         switch(operation.type) {
-            case OperationType.BEGIN:
+            case BEGIN:
                 begin(operation.transactionId, currentTime);
                 break;
-            case OperationType.BEGIN_READ_ONLY:
+            case BEGIN_READ_ONLY:
                 beginRO(operation.transactionId, currentTime);
                 break;
-            case OperationType.COMMIT:
+            case COMMIT:
                 {
                     boolean commitSuccessful = commit(operation.transactionId, currentTime);
                     if (!commitSuccessful) {
@@ -296,10 +296,10 @@ public class TransactionManager {
                     }
                 }
                 break;
-            case OperationType.READ:
+            case READ:
                 executionSuccessful = read(operation.transactionId, operation.variableId, currentTime);
                 break;
-            case OperationType.WRITE:
+            case WRITE:
                 executionSuccessful = write(operation.transactionId, operation.variableId, operation.valueToWrite, currentTime);
                 break;
         }
@@ -316,7 +316,7 @@ public class TransactionManager {
         // if the transaction is currently blocked, add this operation to pending list
         if (transaction.getStatus() == TransactionStatus.BLOCKED) {
             pendingList.add(operation);
-            return;
+            return currentTime;
         }
 
         // call execute
@@ -475,11 +475,30 @@ public class TransactionManager {
     /**
      * initialize TransactionManager
      */
-    public void TransactionManager(Map<Integer, Site> sites) {
+    public TransactionManager(Map<Integer, Site> sites) {
 
-        // initialize data information (dataCollection)
+        this.sites = sites;
+        transactions = new HashMap<>();
+        dataLocation = new HashMap<>();
+        pendingList = new ArrayList<>();
+        waitsForGraph = new HashMap<>();
+        snapshots = new HashMap<>();
 
-        // initialize sites
+        // initialize data location information
+        for (int i = 1; i <= 20; i++) {
+            List<Integer> availableSites = new ArrayList<>();
+            DataInfo dataInfo;
+            if (i % 2 == 0) {
+                for (int j = 1; j <= 10; j++) {
+                    availableSites.add(j);
+                }
+                dataInfo = new DataInfo(i, DataType.REPLICATED, availableSites);
+            } else {
+                availableSites.add(1 + i % 10);
+                dataInfo = new DataInfo(i, DataType.NOT_REPLICATED, availableSites);
+            }
+            dataLocation.put(i, dataInfo);
+        }
     }
 
 }

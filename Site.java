@@ -1,5 +1,6 @@
 import java.util.*;
 class Site {
+    int siteId;
     DataManager dataManager;
     LockManager lockManager;
     SiteStatus siteStatus;
@@ -8,8 +9,10 @@ class Site {
     /**
      * initialize the Site
      */
-    public Site() {
-        // need to figure this out for dataManager and lockManager
+    public Site(int siteId) {
+        this.siteId = siteId;
+        this.dataManager = new DataManager(siteId);
+        this.lockManager = new LockManager();
         this.siteStatus = siteStatus.UP;
         this.latestFailedTime = -1;
     }

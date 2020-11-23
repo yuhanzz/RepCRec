@@ -1,5 +1,6 @@
 import java.util.*;
 public class Database {
+    int time;
     TransactionManager transactionManager;
     Map<Integer, Site> sites;
 
@@ -7,9 +8,13 @@ public class Database {
      * initialize the sites and the transaction manager
      */
     public void init() {
+        time = 0;
         // initialize the sites
-
+        for (int i = 1; i <= 10; i++) {
+            sites.put(i, new Site(i));
+        }
         // initialize the transaction manager
+        transactionManager = new TransactionManager(sites);
     }
 
     /**

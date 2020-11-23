@@ -5,6 +5,7 @@ import java.util.*;
 public final class DataInfo {
 
     private final DataType type;
+    private final int variableId;
     private final List<Integer> availableSites;
 
     public DataInfo(int variableId, DataType type, List<Integer> availableSites) {
@@ -13,7 +14,7 @@ public final class DataInfo {
         this.availableSites = availableSites;
     }
 
-    public void getAvailableSites() {
+    public List<Integer> getAvailableSites() {
         return availableSites;
     }
 }

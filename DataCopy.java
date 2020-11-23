@@ -9,10 +9,10 @@ class DataCopy {
     private DataType dataType;
 
 
-    public DataCopy(DataType dataType)
+    public DataCopy(DataType dataType, int initialValue)
     {
-        this.currentValue = 0;
-        this.committedValue = 0; 
+        this.currentValue = initialValue;
+        this.committedValue = initialValue;
         this.readAvailable = true;
         this.dataType = dataType;
     }
