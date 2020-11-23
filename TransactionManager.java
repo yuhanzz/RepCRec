@@ -205,6 +205,12 @@ public class TransactionManager {
             return false;
         }
 
+        // if can commit, commit the transaction on every site
+        for (int siteId : accessedSites.keySet()) {
+            Site site = sites.get(siteId);
+            site.commit(transactionId);
+        }
+
         // successfully committed
         removeTransactionFromWaitsForGraph(transactionId);
         transaction.setStatus(TransactionStatus.COMMITED);

@@ -73,19 +73,15 @@ class Site {
      * commit this transaction on this site
      */
     public void commit(int transactionId) {
-
-        // update the current value to committed value (only update the variables that this transaction has write lock on)
-        // if the readAvailable of this data copy is false, change it to true (only update the variables that this transaction has write lock on)
-        // release all the locks
-        Set<Integer> writeLocks = lockManager.getAllWrittenVariables(transactionId);
-        for(Integer variableId: writeLocks)
+        Set<Integer> writtenVariables = lockManager.getAllWrittenVariables(transactionId);
+        for(Integer variableId: writtenVariables)
         {
+            // update the current value to committed value
             dataManager.commitVariable(variableId);
-            if(dataManager.readAvailable(variableId))
-            {
-                dataManager.updateReadAvail(variableId, true);
-            }
+            // if the readAvailable of this data copy is false, change it to true
+            dataManager.updateReadAvail(variableId, true);
         }
+        // release all the locks
         lockManager.releaseAllLocks(transactionId);
     }
 
