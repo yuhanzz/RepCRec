@@ -86,11 +86,17 @@ class Site {
     }
 
     /**
-     * abort this transaction on this site if the site is UP, do nothing is the site is DOWN
+     * abort this transaction on this site
      */
     public void abort(int transactionId) {
-        lockManager.releaseAllLocks(transactionId);
+        Set<Integer> writtenVariables = lockManager.getAllWrittenVariables(transactionId);
+        for(Integer variableId: writtenVariables)
+        {
+            // abort the change on the written variables
+            dataManager.abortVariable(variableId);
+        }
         // release all the locks
+        lockManager.releaseAllLocks(transactionId);
     }
 
     public Map<Integer, Integer> takeSnapShot() {

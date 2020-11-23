@@ -45,6 +45,15 @@ public class DataManager {
     }
 
     /**
+     * abort the change on this variable
+     */
+    public void abortVariable(int variableId) {
+        DataCopy dCopy = dataCopies.get(variableId);
+        int committedValue = dCopy.getCommittedValue();
+        dCopy.setCurrentValue(committedValue);
+    }
+
+    /**
      * write the current value
      */
     public void write(int variableId, int value) {
