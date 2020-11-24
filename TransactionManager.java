@@ -15,7 +15,9 @@ public class TransactionManager {
      * may change a transaction's accessedSite
      * will set new status for transaction
      */
-    public boolean read(int transactionId, int variableId, int currentTime) {
+    public boolean read(Operation operation, int currentTime) {
+        int transactionId = operation.getTransactionId();
+        int variableId = operation.getVariableId();
         Transaction transaction = transactions.get(transactionId);
         DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
@@ -36,6 +38,16 @@ public class TransactionManager {
         }
 
         // if read-write transaction
+
+        // check whether there is any earlier pending operations waiting for lock on this variable
+        for (Operation pendingOperation : pendingList) {
+            if (pendingOperation.getVariableId() == variableId && pendingOperation.getArrivingTime() < operation.getArrivingTime()) {
+                transaction.setStatus(TransactionStatus.BLOCKED);
+                return false;
+            }
+        }
+
+        // check whether could read an available copy
         for (int siteId : availableSites) {
             Site site = sites.get(siteId);
 
@@ -93,7 +105,10 @@ public class TransactionManager {
      * may change a transaction's accessedSite
      * will set new status for transaction
      */
-    public boolean write(int transactionId, int variableId, int value, int currentTime) {
+    public boolean write(Operation operation, int currentTime) {
+        int transactionId = operation.getTransactionId();
+        int variableId = operation.getVariableId();
+        int value = operation.getValueToWrite();
         Transaction transaction = transactions.get(transactionId);
         DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
@@ -119,6 +134,14 @@ public class TransactionManager {
             }
             transaction.setStatus(TransactionStatus.BLOCKED);
             return false;
+        }
+
+        // check whether there is any earlier pending operations waiting for lock on this variable
+        for (Operation pendingOperation : pendingList) {
+            if (pendingOperation.getVariableId() == variableId && pendingOperation.getArrivingTime() < operation.getArrivingTime()) {
+                transaction.setStatus(TransactionStatus.BLOCKED);
+                return false;
+            }
         }
 
         // check write lock availability
@@ -177,7 +200,7 @@ public class TransactionManager {
      * will change waitsForGraph
      * will set new status for transaction
      */
-    public boolean commit(int transactionId, int currentTime) {
+    public boolean commit(int transactionId) {
         Transaction transaction = transactions.get(transactionId);
         Map<Integer, Integer> accessedSites = transaction.getAccessedSites();
 
@@ -287,26 +310,26 @@ public class TransactionManager {
      */
     public boolean execute(Operation operation, int currentTime) {
         boolean executionSuccessful = true;
-        switch(operation.type) {
+        switch(operation.getType()) {
             case BEGIN:
-                begin(operation.transactionId, currentTime);
+                begin(operation.getTransactionId(), currentTime);
                 break;
             case BEGIN_READ_ONLY:
-                beginRO(operation.transactionId, currentTime);
+                beginRO(operation.getTransactionId(), currentTime);
                 break;
             case COMMIT:
                 {
-                    boolean commitSuccessful = commit(operation.transactionId, currentTime);
+                    boolean commitSuccessful = commit(operation.getTransactionId());
                     if (!commitSuccessful) {
-                        abort(operation.transactionId);
+                        abort(operation.getTransactionId());
                     }
                 }
                 break;
             case READ:
-                executionSuccessful = read(operation.transactionId, operation.variableId, currentTime);
+                executionSuccessful = read(operation, currentTime);
                 break;
             case WRITE:
-                executionSuccessful = write(operation.transactionId, operation.variableId, operation.valueToWrite, currentTime);
+                executionSuccessful = write(operation, currentTime);
                 break;
         }
 
@@ -317,7 +340,7 @@ public class TransactionManager {
      * return the time to finish this request
      */
     public int handleRequest(Operation operation, int currentTime) {
-        Transaction transaction = transactions.get(operation.transactionId);
+        Transaction transaction = transactions.get(operation.getTransactionId());
 
         // if the transaction is currently blocked, add this operation to pending list
         if (transaction.getStatus() == TransactionStatus.BLOCKED) {
@@ -350,7 +373,7 @@ public class TransactionManager {
 
         // retry every operation that is not in blocked set by calling execute
         for (Operation operation : pendingList) {
-            int transactionId = operation.transactionId;
+            int transactionId = operation.getTransactionId();
 
             if (remainBlockedTransactions.contains(transactionId)) {
                 continue;

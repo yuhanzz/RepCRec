@@ -1,3 +1,5 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.*;
 public class Database {
     int time;
@@ -20,8 +22,7 @@ public class Database {
     /**
      * 
      */
-    public void simulate(File inputFile)
-    {
+    public void simulate(File inputFile) throws FileNotFoundException {
         // initialize scanner
         Scanner scanner;
         if (inputFile == null) {
@@ -31,7 +32,7 @@ public class Database {
         }
 
         // parse and execute each line (site.fail / site.recover / transactionManager.read)
-        while () {
+        while (true) {
 
             // parse the line
 
