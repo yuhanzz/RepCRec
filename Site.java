@@ -120,7 +120,7 @@ class Site {
     }
 
     /**
-     * return the curren time after site fail event
+     * return the current time after site fail event
      */
     public int fail(int time) {
 

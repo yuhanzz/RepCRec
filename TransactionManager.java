@@ -136,7 +136,7 @@ public class TransactionManager {
             Set<Integer> conflictingTransactions = site.lockAvailable(LockType.WRITE, variableId);
 
             // if can not acquire write lock, add all conflicting transactions to the waitsForGraph
-            if (!conflictingTransactions.isEmpty()) {
+            if (!conflictingTransactions.isEmpty() && !(conflictingTransactions.size() == 1 && conflictingTransactions.contains(transactionId))) {
                 writeLockAvailable = false;
                 Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
                 for (int vertex : conflictingTransactions) {
