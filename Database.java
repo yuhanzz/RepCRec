@@ -24,6 +24,13 @@ public class Database {
         transactionManager = new TransactionManager(sites, outputPrinter);
     }
 
+    public void dump() {
+        for (int i = 1; i <= 10; i++) {
+            Site site = sites.get(i);
+            site.dump();
+        }
+    }
+
     /**
      * 
      */
@@ -38,6 +45,10 @@ public class Database {
 
         // parse and execute each line
         while (scanner.hasNextLine()) {
+            if (transactionManager.deadLockDetection()) {
+                transactionManager.retry(time);
+            }
+
             // parse the line
             String line = scanner.nextLine();
             Matcher matcher = Pattern.compile("\\d+").matcher(line);
@@ -45,38 +56,40 @@ public class Database {
             if (line.contains("beginRO")) {
                 int transactionId = Integer.valueOf(matcher.group());
                 Operation operation = new Operation(OperationType.BEGIN_READ_ONLY, transactionId, time);
-                transactionManager.handleRequest(operation);
+                transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("begin")) {
                 int transactionId = Integer.valueOf(matcher.group());
                 Operation operation = new Operation(OperationType.BEGIN, transactionId, time);
-                transactionManager.handleRequest(operation);
+                transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("recover")) {
                 int siteId = Integer.valueOf(matcher.group());
                 Site site = sites.get(siteId);
-                site.recover(time);
-                transactionManager.receiveRecoverNotice(siteId, time);
+                site.recover();
+                transactionManager.retry(time);
             } else if (line.contains("fail")) {
                 int siteId = Integer.valueOf(matcher.group());
                 Site site = sites.get(siteId);
-                site.fail(time);
+                site.fail();
             } else if (line.contains("end")) {
                 int transactionId = Integer.valueOf(matcher.group());
                 Operation operation = new Operation(OperationType.COMMIT, transactionId, time);
-                transactionManager.handleRequest(operation);
+                transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("dump")) {
-                transactionManager.dump();
+                dump();
             } else if (line.contains("R")) {
                 int transactionId = Integer.valueOf(matcher.group());
                 int variableId = Integer.valueOf(matcher.group());
                 Operation operation = new Operation(OperationType.READ, transactionId, variableId, time);
-                transactionManager.handleRequest(operation);
+                transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("W")) {
                 int transactionId = Integer.valueOf(matcher.group());
                 int variableId = Integer.valueOf(matcher.group());
                 int value = Integer.valueOf(matcher.group());
                 Operation operation = new Operation(OperationType.WRITE, transactionId, variableId, value, time);
-                transactionManager.handleRequest(operation);
+                transactionManager.handleNewRequest(operation, time);
             }
+
+            time++;
         }
     }
     

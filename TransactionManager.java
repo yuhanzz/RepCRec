@@ -1,112 +1,145 @@
+import javafx.util.Pair;
+
 import java.util.*;
+
 public class TransactionManager {
 
     private Map<Integer, Site> sites;    // <key : siteId, value : site>
     private OutputPrinter outputPrinter;
     private Map<Integer, Transaction> transactions; // <key : transactionId, value : transaction>
-    private Map<Integer, DataInfo> dataLocation;  // <key : variableId, value : data information>
+    private Map<Integer, DataInfo> dataLocation;  // <key : variableId, value : data distribution information>
     private List<Operation> pendingList;
     private Map<Integer, Set<Integer>> waitsForGraph;
-    private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the transaction id, the value is the snapshot
+    private Map<Integer, List<Integer>> failureHistory;
 
     /**
-     *
-     */
-    public void dump() {
-        for (int i = 1; i <= 10; i++) {
-            Site site = sites.get(i);
-            site.dump();
-        }
-    }
-
-    /**
-     * if the read is successful, will return true, and output the message, might change the lock status
-     * if the read failed , will return false, might change the waitsForGraph
-     * may change a transaction's accessedSite
-     * will set new status for transaction
+     * Execute a general read operation
+     * side effect: might change transaction status
+     * @param operation the read operation
+     * @param currentTime current time
+     * @return true if the read is successful, false if blocked
      */
     public boolean read(Operation operation, int currentTime) {
         int transactionId = operation.getTransactionId();
         int variableId = operation.getVariableId();
         Transaction transaction = transactions.get(transactionId);
-        DataInfo dataInfo = dataLocation.get(variableId);
-        List<Integer> availableSites = dataInfo.getAvailableSites();
-        Integer value = null;
 
-        // if read-only transaction
-        if (transaction.isReadOnly()) {
-            Map<Integer, Integer> snapshot = snapshots.get(transactionId);
-            // if snapshot is missing this part
-            if (!snapshot.containsKey(variableId)) {
-                transaction.setStatus(TransactionStatus.BLOCKED);
-                return false;
-            }
-            value = snapshot.get(variableId);
-            System.out.println("x" + variableId + ": " + value);
+        // if the local cache has this variable, read is successful
+        if (transaction.isHoldingLock(LockType.READ, variableId)) {
+            int value = transaction.read(variableId);
             transaction.setStatus(TransactionStatus.ACTIVE);
+            outputPrinter.printReadSuccess(variableId, value, transactionId);
             return true;
         }
 
-        // if read-write transaction
-
-        // check whether there is any earlier pending operations waiting for lock on this variable
-        for (Operation pendingOperation : pendingList) {
-            if (pendingOperation.getVariableId() == variableId && pendingOperation.getArrivingTime() < operation.getArrivingTime()) {
-                transaction.setStatus(TransactionStatus.BLOCKED);
-                return false;
-            }
+        // otherwise, try to read from sites
+        if (transaction.isReadOnly()) {
+            return read_RO(operation);
         }
+        return read_RW(operation, currentTime);
+    }
 
-        // check whether could read an available copy
+    /**
+     * Attempt to read an available copy for read-write transaction
+     * side effect: will change the local cache and info of transactions, the lock table, and waitsForGraph
+     * @param operation the read operation
+     * @param currentTime current time
+     * @return true if the read is successful, false if blocked
+     */
+    public boolean read_RW(Operation operation, int currentTime) {
+        int transactionId = operation.getTransactionId();
+        int variableId = operation.getVariableId();
+        Transaction transaction = transactions.get(transactionId);
+
+        DataInfo dataInfo = dataLocation.get(variableId);
+        List<Integer> availableSites = dataInfo.getAvailableSites();
+
         for (int siteId : availableSites) {
             Site site = sites.get(siteId);
+            DataManager dataManager = site.getDataManager();
+            LockManager lockManager = site.getLockManager();
 
-            // if the site is down
-            if (site.getSiteStatus() == SiteStatus.DOWN) {
+            // if the site is down or the copy is not available for read
+            if (!site.isUp() || !dataManager.readAvailable(variableId)) {
                 continue;
             }
 
-            // if the copy is not available for read
-            if (!site.readAvailable(variableId)) {
-                continue;
-            }
-
-            // if holding the read lock
-            if (transaction.isHoldingLock(LockType.READ, variableId)) {
-                value = site.read(variableId);
-                break;
-            }
-
-            // if need to acquire read lock
-            Set<Integer> conflictingTransactions = site.lockAvailable(LockType.READ, variableId);
+            // if find an available site, try to acquire the read lock
+            Set<Integer> conflictingTransactions = lockManager.acquireLock(transactionId, variableId, LockType.READ);
 
             // if can not acquire read lock
             if (!conflictingTransactions.isEmpty()) {
                 Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
                 for (int vertex : conflictingTransactions) {
-                    vertices.add(vertex);
+                    if (vertex != -1) {
+                        vertices.add(vertex);
+                    }
                 }
                 waitsForGraph.put(transactionId, vertices);
-                break;
+                transaction.setStatus(TransactionStatus.BLOCKED);
+                return false;
             }
 
-            // if can acquire read lock
-            site.acquireLock(LockType.READ, transactionId, variableId);
-            transaction.addAccessedSite(currentTime, siteId);
+            // if acquire read lock successfully, read the value into local cache
             transaction.addLock(LockType.READ, variableId);
-            value = site.read(variableId);
-            break;
+            int value = dataManager.read(variableId);
+            transaction.cache(variableId, value);
+            transaction.addAccessedSite(currentTime, siteId);
+            transaction.setStatus(TransactionStatus.ACTIVE);
+            outputPrinter.printReadSuccess(variableId, value, transactionId);
+            return true;
         }
 
-        if (value == null) {
-            transaction.setStatus(TransactionStatus.BLOCKED);
-            return false;
-        }
-
-        System.out.println("x" + variableId + ": " + value);
-        transaction.setStatus(TransactionStatus.ACTIVE);
-        return true;
+        // if read failed due to all sites unavailable
+        transaction.setStatus(TransactionStatus.BLOCKED);
+        return false;
     }
+
+    /**
+     * Attempt to read a snapshot for read-only transaction
+     * side effect: will change the local cache and info of transactions
+     * @param operation the read operation
+     * @return true if the read is successful, false if blocked
+     */
+    public boolean read_RO(Operation operation) {
+        int transactionId = operation.getTransactionId();
+        int variableId = operation.getVariableId();
+        Transaction transaction = transactions.get(transactionId);
+        int transactionBeginTime = transaction.getBeginTime();
+
+        DataInfo dataInfo = dataLocation.get(variableId);
+        List<Integer> availableSites = dataInfo.getAvailableSites();
+
+        for (int siteId : availableSites) {
+            Site site = sites.get(siteId);
+            DataManager dataManager = site.getDataManager();
+
+            // if the site is down
+            if (!site.isUp()) {
+                continue;
+            }
+
+            Pair<Integer, Integer> snapshot = dataManager.getSnapshot(variableId, transactionBeginTime);
+            int commitTime = snapshot.getKey();
+            int commitValue = snapshot.getValue();
+
+            // if there is failure occurred between the latest commit time and the transaction begin time, this version can not be read
+            if (hasFailureBetween(siteId, commitTime, transactionBeginTime)) {
+                continue;
+            }
+
+            // read success
+            transaction.cache(variableId, commitValue);
+            transaction.setStatus(TransactionStatus.ACTIVE);
+            outputPrinter.printReadSuccess(variableId, commitValue, transactionId);
+            return true;
+        }
+
+        // read blocked
+        transaction.setStatus(TransactionStatus.BLOCKED);
+        return false;
+    }
+
 
     /**
      * write to all the available copies
@@ -115,119 +148,123 @@ public class TransactionManager {
      * may change a transaction's accessedSite
      * will set new status for transaction
      */
+
+    /**
+     * Attempt to write a variable
+     * side effect: will change the local cache and info of transactions, the lock table, and waitsForGraph
+     * @param operation the write operation
+     * @return
+     */
     public boolean write(Operation operation, int currentTime) {
         int transactionId = operation.getTransactionId();
         int variableId = operation.getVariableId();
         int value = operation.getValueToWrite();
         Transaction transaction = transactions.get(transactionId);
+
+        // if is holding the write lock, write is successful
+        if (transaction.isHoldingLock(LockType.WRITE, variableId)) {
+            transaction.cache(variableId, value);
+            transaction.setStatus(TransactionStatus.ACTIVE);
+            outputPrinter.printWriteSuccess(variableId, value, transactionId);
+            return true;
+        }
+
+        // otherwise, need to acquire write lock
         DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
-        int upSites = 0;
+        Set<Integer> accessedSites = new HashSet<>();
 
-        // if is holding the lock, just write to all available sites, if all the sites failed, return false
-        if (transaction.isHoldingLock(LockType.WRITE, variableId)) {
-
-            for (int siteId : availableSites) {
-                Site site = sites.get(siteId);
-
-                // if the site is down
-                if (site.getSiteStatus() == SiteStatus.DOWN) {
-                    continue;
-                }
-
-                site.write(variableId, value);
-                upSites++;
-            }
-            if (upSites > 0) {
-                transaction.setStatus(TransactionStatus.ACTIVE);
-                return true;
-            }
-            transaction.setStatus(TransactionStatus.BLOCKED);
-            return false;
-        }
-
-        // check whether there is any earlier pending operations waiting for lock on this variable
-        for (Operation pendingOperation : pendingList) {
-            if (pendingOperation.getVariableId() == variableId && pendingOperation.getArrivingTime() < operation.getArrivingTime()) {
-                transaction.setStatus(TransactionStatus.BLOCKED);
-                return false;
-            }
-        }
-
-        // check write lock availability
         boolean writeLockAvailable = true;
         for (int siteId : availableSites) {
             Site site = sites.get(siteId);
+            LockManager lockManager = site.getLockManager();
 
             // if the site is down
-            if (site.getSiteStatus() == SiteStatus.DOWN) {
+            if (!site.isUp()) {
                 continue;
             }
 
-            upSites++;
+            accessedSites.add(siteId);
 
-            Set<Integer> conflictingTransactions = site.lockAvailable(LockType.WRITE, variableId);
+            Set<Integer> conflictingTransactions = lockManager.acquireLock(transactionId, variableId, LockType.WRITE);
 
             // if can not acquire write lock, add all conflicting transactions to the waitsForGraph
             if (!conflictingTransactions.isEmpty() && !(conflictingTransactions.size() == 1 && conflictingTransactions.contains(transactionId))) {
                 writeLockAvailable = false;
                 Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
                 for (int vertex : conflictingTransactions) {
-                    vertices.add(vertex);
+                    if (vertex != -1) {
+                        vertices.add(vertex);
+                    }
                 }
                 waitsForGraph.put(transactionId, vertices);
             }
         }
 
+        // if failed to acquire write lock on all available sites, release the locks that already obtained
         if (!writeLockAvailable) {
-            transaction.setStatus(TransactionStatus.BLOCKED);
-            return false;
-        }
+            boolean holdingReadLock = transaction.isHoldingLock(LockType.READ, variableId);
+            for (int siteId : availableSites) {
+                Site site = sites.get(siteId);
+                LockManager lockManager = site.getLockManager();
 
-        if (upSites == 0) {
-            transaction.setStatus(TransactionStatus.BLOCKED);
-            return false;
-        }
+                // if the site is down
+                if (!site.isUp()) {
+                    continue;
+                }
 
-        // if can acquire write lock
-        for (int siteId : availableSites) {
-            Site site = sites.get(siteId);
-            if (site.getSiteStatus() == SiteStatus.DOWN) {
-                continue;
+                lockManager.releaseWriteLock(transactionId, variableId, holdingReadLock);
+
             }
-            site.acquireLock(LockType.WRITE, transactionId, variableId);
-            transaction.addAccessedSite(currentTime, siteId);
-            site.write(variableId, value);
+
+            // write failed
+            transaction.setStatus(TransactionStatus.BLOCKED);
+            return false;
         }
 
+        // if there is no site up, also failed
+        if (accessedSites.isEmpty()) {
+            transaction.setStatus(TransactionStatus.BLOCKED);
+            return false;
+        }
+
+        // if all write locks acquired, write success
+        for (int siteId : accessedSites) {
+            transaction.addAccessedSite(currentTime, siteId);
+        }
         transaction.addLock(LockType.WRITE, variableId);
+        transaction.cache(variableId, value);
         transaction.setStatus(TransactionStatus.ACTIVE);
+        outputPrinter.printWriteSuccess(variableId, value, transactionId);
         return true;
     }
 
     /**
-     * two phase commit
-     * will change waitsForGraph
-     * will set new status for transaction
+     * Attempt to commit a transaction
+     * side effect: will change the status of transactions, the lock manager, the data manager, and waitsForGraph
+     * @param transactionId the transaction to commit
+     * @param currentTime current time
+     * @return true if can commit, false if can not
      */
-    public boolean commit(int transactionId) {
+    public boolean commit(int transactionId, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
         Map<Integer, Integer> accessedSites = transaction.getAccessedSites();
 
         // if read-only transaction
         if (transaction.isReadOnly()) {
             transaction.setStatus(TransactionStatus.COMMITED);
+            outputPrinter.printCommitSuccess(transactionId);
             return true;
         }
 
         // if read-write transaction, two phase commit
         boolean canCommit = true;
 
-        // concensus
+        // consensus
         for (int siteId : accessedSites.keySet()) {
             Site site = sites.get(siteId);
             int firstAccessTime = accessedSites.get(siteId);
-            if (!site.commitReady(firstAccessTime)) {
+            if (hasFailureBetween(siteId, firstAccessTime, currentTime)) {
                 canCommit = false;
                 break;
             }
@@ -238,21 +275,32 @@ public class TransactionManager {
             return false;
         }
 
-        // if can commit, commit the transaction on every site
+        // if can commit, firstly get all the written variables
+        Map<Integer, Integer> updatedVariables = new HashMap<>();
+        Map<Integer, Integer> localCache = transaction.getLocalCache();
+        for (int variableId : localCache.keySet()) {
+            if (transaction.isHoldingLock(LockType.WRITE, variableId)) {
+                updatedVariables.put(variableId, localCache.get(variableId));
+            }
+        }
+
+        // commit on every site
         for (int siteId : accessedSites.keySet()) {
             Site site = sites.get(siteId);
-            site.commit(transactionId);
+            site.commit(transactionId, currentTime, updatedVariables);
         }
 
         // successfully committed
         removeTransactionFromWaitsForGraph(transactionId);
         transaction.setStatus(TransactionStatus.COMMITED);
+        outputPrinter.printCommitSuccess(transactionId);
         return true;
     }
 
     /**
-     * will change waitsForGraph
-     * will set new status for transaction
+     * Abort the transaction
+     * side effect: will change lock manager, transaction status, and waitsForGraph
+     * @param transactionId the transaction to abort
      */
     public void abort(int transactionId) {
         Transaction transaction = transactions.get(transactionId);
@@ -260,76 +308,57 @@ public class TransactionManager {
 
         for (int siteId : accessedSites.keySet()) {
             Site site = sites.get(siteId);
-            site.abort(transactionId);
+            if (site.isUp()) {
+                site.abort(transactionId);
+            }
         }
         removeTransactionFromWaitsForGraph(transactionId);
         transaction.setStatus(TransactionStatus.ABORTED);
-    }
-
-    public void begin(int transactionId, int currentTime) {
-        Transaction transaction = new Transaction(transactionId, currentTime, TransactionType.READ_WRITE);
-        transactions.put(transactionId, transaction);
-    }
-
-    public void beginRO(int transactionId, int currentTime) {
-        Transaction transaction = new Transaction(transactionId, currentTime, TransactionType.READ_ONLY);
-        transactions.put(transactionId, transaction);
-
-        // take snapshot
-        Map<Integer, Integer> snapshot = new HashMap<>();
-        for (int siteId : sites.keySet()) {
-            Site site = sites.get(siteId);
-            Map<Integer, Integer> snapshotFromEachSite = site.takeSnapShot();
-            for (int variableId : snapshotFromEachSite.keySet()) {
-                snapshot.put(variableId, snapshotFromEachSite.get(variableId));
-            }
-        }
-        snapshots.put(transactionId, snapshot);
+        outputPrinter.printAbortSuccess(transactionId);
     }
 
     /**
-     * make up the missing part of each snapshot immediately when received site recover notice
-     * return the current time
-    */
-    public int receiveRecoverNotice(int siteId, int currentTime) {
-        Site site = sites.get(siteId);
-        Map<Integer, Integer> newSnapshot = site.takeSnapShot();
-
-        if (newSnapshot.isEmpty()) {
-            return currentTime;
-        }
-        
-        // Make up the missing part of the snapshots that are already taken
-        for (int transactionId : snapshots.keySet()) {
-
-            Map<Integer, Integer> takenSnapshot = snapshots.get(transactionId);
-
-            for (int variableId : newSnapshot.keySet()) {
-                // only update the snapshot if this variable in that snapshot is missing
-                if (!takenSnapshot.containsKey(variableId)) {
-                    takenSnapshot.put(variableId, newSnapshot.get(variableId));
-                }
-            }
-        }
-
-        return retry(currentTime);
+     * Begin a read-write transaction
+     * side effect: will change transactions
+     * @param operation the begin operation
+     */
+    public void begin(Operation operation) {
+        int transactionId = operation.getTransactionId();
+        int time = operation.getArrivingTime();
+        Transaction transaction = new Transaction(transactionId, time, TransactionType.READ_WRITE);
+        transactions.put(transactionId, transaction);
     }
 
     /**
-     * 
+     * Begin a read-only transaction
+     * side effect: will change transactions
+     * @param operation the begin opeartion
+     */
+    public void beginRO(Operation operation) {
+        int transactionId = operation.getTransactionId();
+        int time = operation.getArrivingTime();
+        Transaction transaction = new Transaction(transactionId, time, TransactionType.READ_ONLY);
+        transactions.put(transactionId, transaction);
+    }
+
+    /**
+     * Attempt to execute an operation
+     * @param operation the operation to execute
+     * @param currentTime the current time
+     * @return true if the execution is successful, false if not blocked
      */
     public boolean execute(Operation operation, int currentTime) {
         boolean executionSuccessful = true;
         switch(operation.getType()) {
             case BEGIN:
-                begin(operation.getTransactionId(), currentTime);
+                begin(operation);
                 break;
             case BEGIN_READ_ONLY:
-                beginRO(operation.getTransactionId(), currentTime);
+                beginRO(operation);
                 break;
             case COMMIT:
                 {
-                    boolean commitSuccessful = commit(operation.getTransactionId());
+                    boolean commitSuccessful = commit(operation.getTransactionId(), currentTime);
                     if (!commitSuccessful) {
                         abort(operation.getTransactionId());
                     }
@@ -347,36 +376,36 @@ public class TransactionManager {
     }
 
     /**
-     * return the time to finish this request
+     * Handle the new request coming from std or file
+     * side effect: might change pending list
+     * @param operation the operation
+     * @param currentTime the current time
      */
-    public int handleRequest(Operation operation) {
-        int currentTime = operation.getArrivingTime();
+    public void handleNewRequest(Operation operation, int currentTime) {
         Transaction transaction = transactions.get(operation.getTransactionId());
 
         // if the transaction is currently blocked, add this operation to pending list
         if (transaction.getStatus() == TransactionStatus.BLOCKED) {
             pendingList.add(operation);
-            return currentTime;
         }
 
-        // call execute
-        boolean executionSuccessful = execute(operation, currentTime);
-
-        if (executionSuccessful) {
-            // if execution is successful, increase current time, and retry because there could be potential unblocked operations
-            return retry(currentTime + 1);
-        } else {
-            // if execution is not successful, add the operation to pending list
+        // if the execution is not successful, add the operation to pending list
+        if (!execute(operation, currentTime)) {
             pendingList.add(operation);
-            return currentTime;
+        }
+
+        // if the operation is commit or abort, call retry
+        if (operation.getType() == OperationType.COMMIT) {
+            retry(currentTime);
         }
     }
 
     /**
-     * iterate through the pending list and retry, and return the time after retry
+     * Iterate through the pending list and retry
+     * @param currentTime the current time
      */
-    public int retry(int currentTime) {
-        // maintain a set of transaction that are still blcoked, initally the set is empty
+    public void retry(int currentTime) {
+        // maintain a set of transaction that are still blocked, initially the set is empty
         Set<Integer> remainBlockedTransactions = new HashSet<>();
 
         // the finished operations
@@ -406,12 +435,12 @@ public class TransactionManager {
         for (Operation operation : finishedOperations) {
             pendingList.remove(operation);
         }
-
-        return currentTime;
     }
 
     /**
-     * remove the edges in waitsForGraph whose source vertex or destination vertex is this transaction
+     * Helper method for removing the edges in waitsForGraph whose source vertex or destination vertex is this transaction
+     * side effect: will change the waitsForGraph
+     * @param transactionId the transaction id
      */
     public void removeTransactionFromWaitsForGraph(int transactionId) {
         waitsForGraph.remove(transactionId);
@@ -421,8 +450,14 @@ public class TransactionManager {
         }
     }
 
-    public void deadLockDetection() {
-        boolean hasCycle = true; 
+    /**
+     * Deadlock detection
+     * side effect: might abort transactions and change waitsForGraph
+     * @return true if there is any cycle detected, false if not
+     */
+    public boolean deadLockDetection() {
+        boolean hasCycle = true;
+        boolean detected = false;
         while(hasCycle)
         {
             Set<Integer> cycle = detect(waitsForGraph);
@@ -443,11 +478,17 @@ public class TransactionManager {
                     }
                 }
                 abort(victim);
+                detected = true;
             }
         }
-        
+        return detected;
     }
 
+    /**
+     * Helper method for finding a cycle in waitsForGraph
+     * @param transactions the graph
+     * @return the set of transactions in cycle
+     */
     public Set<Integer> detect(Map<Integer, Set<Integer>> transactions)
     {
         Map<Integer,Integer> degree = new HashMap<>();
@@ -513,7 +554,26 @@ public class TransactionManager {
     }
 
     /**
-     * initialize TransactionManager
+     * Helper method for checking whether the site has a failure between a time range
+     * @param siteId the site id
+     * @param start the start of the time range
+     * @param end the end of the time range
+     * @return true if there is a failure history between the range, false if there isn't
+     */
+    private boolean hasFailureBetween(int siteId, int start, int end) {
+        List<Integer> failures = failureHistory.getOrDefault(siteId, new ArrayList<>());
+        for (int failure : failures) {
+            if (failure > start && failure < end) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Initialize transaction manager
+     * @param sites sites
+     * @param outputPrinter output helper
      */
     public TransactionManager(Map<Integer, Site> sites, OutputPrinter outputPrinter) {
 
@@ -523,7 +583,7 @@ public class TransactionManager {
         dataLocation = new HashMap<>();
         pendingList = new ArrayList<>();
         waitsForGraph = new HashMap<>();
-        snapshots = new HashMap<>();
+        failureHistory= new HashMap<>();
 
         // initialize data location information
         for (int i = 1; i <= 20; i++) {

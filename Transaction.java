@@ -8,7 +8,8 @@ public class Transaction{
     private TransactionType type;
     public TransactionStatus status;
     private Map<Integer, Integer> accessedSites; // <key : accessed site id, value : firstAccessedTiem>
-    private Map<Integer, LockType> holdingLocks;
+    private Map<Integer, LockType> holdingLocks;    // <key : variable id, value : the lock level held on this variable (Read / Write)>
+    private Map<Integer, Integer> localCache;   // <key : variable id, value : current value>
 
 
     public Transaction(int id, int beginTime, TransactionType type) {
@@ -18,6 +19,10 @@ public class Transaction{
         this.status = TransactionStatus.ACTIVE;
         this.accessedSites = new HashMap<>();
         this.holdingLocks = new HashMap<>();
+    }
+
+    public TransactionType getType() {
+        return type;
     }
 
     public int getBeginTime() {
@@ -70,11 +75,27 @@ public class Transaction{
         holdingLocks.put(variableId, lockType);
     }
 
+    public int read(int variableId) {
+        return localCache.get(variableId);
+    }
+
+    public void write(int variableId, int value) {
+        localCache.put(variableId, value);
+    }
+
     public void setStatus(TransactionStatus status) {
         this.status = status;
     }
 
     public TransactionStatus getStatus() {
         return status;
+    }
+
+    public void cache(int variableId, int value) {
+        localCache.put(variableId, value);
+    }
+
+    public Map<Integer, Integer> getLocalCache() {
+        return localCache;
     }
 }
