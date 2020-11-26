@@ -5,7 +5,6 @@ class Site {
     DataManager dataManager;
     LockManager lockManager;
     SiteStatus siteStatus;
-    int latestFailedTime;
 
     /**
      * initialize the Site
@@ -16,146 +15,78 @@ class Site {
         this.dataManager = new DataManager(siteId);
         this.lockManager = new LockManager();
         this.siteStatus = siteStatus.UP;
-        this.latestFailedTime = -1;
     }
 
+    /**
+     * Dump the site
+     */
     public void dump() {
         dataManager.dump(outputPrinter);
     }
-    
-    public SiteStatus getSiteStatus() {
-        return this.siteStatus;
+
+
+    /**
+     * Check whether the site is up
+     * @return true if the site is up, false if the site is down
+     */
+    public boolean isUp() {
+        return siteStatus == SiteStatus.UP;
     }
 
     /**
-     * return true if the readAvailable of this data copy is true
+     * Get the data manager
+     * @return data manager
      */
-    public boolean readAvailable(int variableId) {
-        if(dataManager.readAvailable(variableId)) return true;
-        return false;
+    public DataManager getDataManager() {
+        return dataManager;
     }
 
     /**
-     * return the empty set if can acquire this lock
-     * return the set of conflicting transactions if can not
+     * Get the lock manager
+     * @return lock manager
      */
-    public Set<Integer> lockAvailable(LockType lockType, int variableId) {
-        if(lockType == LockType.READ)
-        {
-            return lockManager.readLockAvailable(variableId);
-        }
-        return lockManager.writeLockAvailable(variableId);
+    public LockManager getLockManager() {
+        return lockManager;
     }
 
     /**
-     * change the lock table accordingly
+     * Call data manager and lock manager to commit this transaction
+     * side effect: will change data manager and lock manager
+     * @param transactionId the transaction to commit
+     * @param updatedVariables the updated values of the variables touched by this transaction
      */
-    public void acquireLock(LockType lockType, int transactionId, int variableId) {
-        lockManager.addLock(lockType, transactionId, variableId);
-    }
-
-    /**
-     * return the current value of the data copy
-     */
-    public int read(int variableId) {
-        return dataManager.read(variableId); 
-    }
-
-    /**
-     * change the current value of the data copy
-     */
-    public void write(int variableId, int value) {
-        dataManager.write(variableId, value);
-    }
-
-    /**
-     * return true if Site is UP and firstAccessTime is larger than latestFailedTime
-     */
-    public boolean commitReady(int firstAccessTime) {
-        return siteStatus == SiteStatus.UP && firstAccessTime > latestFailedTime;
-    }
-
-    /**
-     * commit this transaction on this site
-     */
-    public void commit(int transactionId) {
-        Set<Integer> writtenVariables = lockManager.getAllWrittenVariables(transactionId);
-        for(Integer variableId: writtenVariables)
-        {
-            // update the current value to committed value
-            dataManager.commitVariable(variableId);
-            // if the readAvailable of this data copy is false, change it to true
-            dataManager.updateReadAvail(variableId, true);
-        }
-        // release all the locks
+    public void commit(int transactionId, int time, Map<Integer, Integer> updatedVariables) {
+        dataManager.commitVariables(time, updatedVariables);
         lockManager.releaseAllLocks(transactionId);
     }
 
     /**
-     * abort this transaction on this site
+     * Call lock manager to abort this transaction
+     * side effect: will change lock manager
+     * @param transactionId the transaction to abort
      */
     public void abort(int transactionId) {
-        Set<Integer> writtenVariables = lockManager.getAllWrittenVariables(transactionId);
-        for(Integer variableId: writtenVariables)
-        {
-            // abort the change on the written variables
-            dataManager.abortVariable(variableId);
-        }
-        // release all the locks
         lockManager.releaseAllLocks(transactionId);
     }
 
-    public Map<Integer, Integer> takeSnapShot() {
-        // if the site is down, return empty set
-        // for all the data items in this site whose readAvailable is true, we send its committed value
-        Map<Integer, Integer> map = new HashMap<>();
-        if(siteStatus == SiteStatus.DOWN)
-        {
-            return map;
-        }
-        else
-        {
-            Set<Integer> items = dataManager.getAllReadAvail();
-            for(Integer item: items)
-            {
-                map.put(item,dataManager.readCommittedValue(item));
-            }
-        }
-        return map;
-        
-    }
-
     /**
-     * return the current time after site fail event
+     * Simulate site failure
+     * side effect: will change siteStatus, lock manager, data manager
      */
-    public int fail(int time) {
+    public void fail() {
 
-        // change the site status
         siteStatus = SiteStatus.DOWN;
-        // remove all the locks on this site
         lockManager.clear();
-        // set the latestFailedTime to current time
-        latestFailedTime = time;
-        // set the readAvailable of all the data copies as false
-        Set<Integer> set = dataManager.getAllReadAvail();
-        for(Integer item: set)
-        {
-            dataManager.updateReadAvail(item, false);
-        }
-
-        return time + 1;
+        dataManager.setAllDataUnavailable();
     }
-    
+
     /**
-     * return the time after recover finishes
+     * simulate site recovery
+     * side effect: will change siteStatus, data manager
      */
-    public int recover(int time) {
+    public void recover() {
 
-        // change the site status
         siteStatus = SiteStatus.UP;
-        // for all the non-replicated data copies on this site, set its readAvailable to true
-        dataManager.setAllNonReplicatedReadAvail(true);
-
-        return time + 1;
+        dataManager.setAllNonReplicatedDataAvailable();
     }
 }

@@ -1,36 +1,24 @@
+import javafx.util.Pair;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * information about the data copy stored on the data manager
  */
 
 class DataCopy {
-    private int currentValue;
-    private int committedValue;
+    private List<Pair<Integer, Integer>> commitHistory;
     private boolean readAvailable;
     private DataType dataType;
 
 
     public DataCopy(DataType dataType, int initialValue)
     {
-        this.currentValue = initialValue;
-        this.committedValue = initialValue;
+        this.commitHistory = new ArrayList<>();
+        commitHistory.add(new Pair<>(-1, initialValue));
         this.readAvailable = true;
         this.dataType = dataType;
-    }
-
-    public int getCurrentValue() {
-        return currentValue;
-    }
-
-    public void setCurrentValue(int currentValue) {
-        this.currentValue = currentValue;
-    }
-
-    public int getCommittedValue() {
-        return committedValue;
-    }
-
-    public void setCommittedValue(int committedValue) {
-        this.committedValue = committedValue;
     }
 
     public boolean isReadAvailable() {
@@ -45,7 +33,16 @@ class DataCopy {
         return dataType;
     }
 
-    public void setDataType(DataType dataType) {
-        this.dataType = dataType;
+    public void addCommitHistory(int time, int value) {
+        commitHistory.add(new Pair<>(time, value));
+    }
+
+    public int getLatestCommitValue() {
+        Pair<Integer, Integer> latestCommit = commitHistory.get(commitHistory.size() - 1);
+        return latestCommit.getValue();
+    }
+
+    public List<Pair<Integer, Integer>> getCommitHistory() {
+        return commitHistory;
     }
 }
