@@ -2,12 +2,22 @@ import java.util.*;
 public class TransactionManager {
 
     private Map<Integer, Site> sites;    // <key : siteId, value : site>
+    private OutputPrinter outputPrinter;
     private Map<Integer, Transaction> transactions; // <key : transactionId, value : transaction>
     private Map<Integer, DataInfo> dataLocation;  // <key : variableId, value : data information>
     private List<Operation> pendingList;
     private Map<Integer, Set<Integer>> waitsForGraph;
     private Map<Integer, Map<Integer, Integer>> snapshots;  // the key is the transaction id, the value is the snapshot
 
+    /**
+     *
+     */
+    public void dump() {
+        for (int i = 1; i <= 10; i++) {
+            Site site = sites.get(i);
+            site.dump();
+        }
+    }
 
     /**
      * if the read is successful, will return true, and output the message, might change the lock status
@@ -339,7 +349,8 @@ public class TransactionManager {
     /**
      * return the time to finish this request
      */
-    public int handleRequest(Operation operation, int currentTime) {
+    public int handleRequest(Operation operation) {
+        int currentTime = operation.getArrivingTime();
         Transaction transaction = transactions.get(operation.getTransactionId());
 
         // if the transaction is currently blocked, add this operation to pending list
@@ -504,9 +515,10 @@ public class TransactionManager {
     /**
      * initialize TransactionManager
      */
-    public TransactionManager(Map<Integer, Site> sites) {
+    public TransactionManager(Map<Integer, Site> sites, OutputPrinter outputPrinter) {
 
         this.sites = sites;
+        this.outputPrinter = outputPrinter;
         transactions = new HashMap<>();
         dataLocation = new HashMap<>();
         pendingList = new ArrayList<>();

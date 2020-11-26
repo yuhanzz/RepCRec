@@ -1,12 +1,16 @@
+import com.sun.tools.internal.ws.wsdl.document.Output;
+
 import java.util.*;
 
 public class DataManager {
+    int siteId;
     Map<Integer, DataCopy> dataCopies;  // <key : variable id, value : data copy>
 
     /**
      * initialize the data manager
      */
     public DataManager(int siteId) {
+        this.siteId = siteId;
         for (int i = 1; i <= 20; i++) {
             if (i % 2 == 0) {
                 dataCopies.put(i, new DataCopy(DataType.REPLICATED, 10 * i));
@@ -16,6 +20,10 @@ public class DataManager {
                 dataCopies.put(i, new DataCopy(DataType.NOT_REPLICATED, 10 * i));
             }
         }
+    }
+
+    public void dump(OutputPrinter outputPrinter) {
+        outputPrinter.dumpSite(siteId, dataCopies);
     }
 
     /**

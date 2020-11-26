@@ -1,6 +1,7 @@
 import java.util.*;
 class Site {
     int siteId;
+    OutputPrinter outputPrinter;
     DataManager dataManager;
     LockManager lockManager;
     SiteStatus siteStatus;
@@ -9,12 +10,17 @@ class Site {
     /**
      * initialize the Site
      */
-    public Site(int siteId) {
+    public Site(int siteId, OutputPrinter outputPrinter) {
         this.siteId = siteId;
+        this.outputPrinter = outputPrinter;
         this.dataManager = new DataManager(siteId);
         this.lockManager = new LockManager();
         this.siteStatus = siteStatus.UP;
         this.latestFailedTime = -1;
+    }
+
+    public void dump() {
+        dataManager.dump(outputPrinter);
     }
     
     public SiteStatus getSiteStatus() {
