@@ -53,6 +53,15 @@ public class TransactionManager {
         int variableId = operation.getVariableId();
         Transaction transaction = transactions.get(transactionId);
 
+        // firstly check if there is any blocking transactions in pending list to prevent starvation
+        Set<Integer> blockingTransactions = getBlockingTransaciton(operation);
+        if (!blockingTransactions.isEmpty()) {
+            addEdgesToWaitsForGraph(transactionId, blockingTransactions);
+            transaction.setStatus(TransactionStatus.BLOCKED);
+            return false;
+        }
+
+        // if there is no blocking transactions, try to acquire lock
         DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
 
@@ -71,11 +80,7 @@ public class TransactionManager {
 
             // if can not acquire read lock
             if (!conflictingTransactions.isEmpty()) {
-                Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
-                for (int vertex : conflictingTransactions) {
-                    vertices.add(vertex);
-                }
-                waitsForGraph.put(transactionId, vertices);
+                addEdgesToWaitsForGraph(transactionId, conflictingTransactions);
                 transaction.setStatus(TransactionStatus.BLOCKED);
                 return false;
             }
@@ -160,7 +165,15 @@ public class TransactionManager {
             return true;
         }
 
-        // otherwise, need to acquire write lock
+        // if need to acquire lock, firstly check if there is any blocking transactions in pending list to prevent starvation
+        Set<Integer> blockingTransactions = getBlockingTransaciton(operation);
+        if (!blockingTransactions.isEmpty()) {
+            addEdgesToWaitsForGraph(transactionId, blockingTransactions);
+            transaction.setStatus(TransactionStatus.BLOCKED);
+            return false;
+        }
+
+        // otherwise, try to acquire write lock
         DataInfo dataInfo = dataLocation.get(variableId);
         List<Integer> availableSites = dataInfo.getAvailableSites();
         Set<Integer> accessedSites = new HashSet<>();
@@ -182,11 +195,7 @@ public class TransactionManager {
             // if can not acquire write lock, add all conflicting transactions to the waitsForGraph
             if (!conflictingTransactions.isEmpty() && !(conflictingTransactions.size() == 1 && conflictingTransactions.contains(transactionId))) {
                 writeLockAvailable = false;
-                Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
-                for (int vertex : conflictingTransactions) {
-                    vertices.add(vertex);
-                }
-                waitsForGraph.put(transactionId, vertices);
+                addEdgesToWaitsForGraph(transactionId, conflictingTransactions);
             }
         }
 
@@ -383,10 +392,6 @@ public class TransactionManager {
             pendingList.add(operation);
         }
 
-        // if the operation is commit or abort, call retry
-        if (operation.getType() == OperationType.COMMIT) {
-            retry(currentTime);
-        }
     }
 
     /**
@@ -405,6 +410,10 @@ public class TransactionManager {
             int transactionId = operation.getTransactionId();
 
             if (remainBlockedTransactions.contains(transactionId)) {
+                continue;
+            }
+
+            if (waitsForGraph.getOrDefault(transactionId, new HashSet<>()).size() > 0) {
                 continue;
             }
 
@@ -443,6 +452,19 @@ public class TransactionManager {
         for (int source : sourceToRemove) {
             waitsForGraph.remove(source);
         }
+    }
+
+    /**
+     * Add edges to waits for graph
+     * @param source the source node
+     * @param destinations the destination nodes
+     */
+    private void addEdgesToWaitsForGraph(int source, Set<Integer> destinations) {
+        Set<Integer> vertices = waitsForGraph.getOrDefault(source, new HashSet<>());
+        for (int destination : destinations) {
+            vertices.add(destination);
+        }
+        waitsForGraph.put(source, vertices);
     }
 
     /**
@@ -605,6 +627,80 @@ public class TransactionManager {
         List<Integer> history = failureHistory.getOrDefault(siteId, new ArrayList<>());
         history.add(time);
         failureHistory.put(siteId, history);
+    }
+
+    /**
+     * Find the blocking transactions in pending list to prevent starvation
+     * @param operation the operation
+     * @return the set of transactions that the current transaction needs to wait for
+     */
+    private Set<Integer> getBlockingTransaciton(Operation operation) {
+        int transactionId = operation.getTransactionId();
+        int variableId = operation.getVariableId();
+        LockType locktype;
+        if (operation.getType() == OperationType.WRITE) {
+            locktype = LockType.WRITE;
+        } else {
+            locktype = LockType.READ;
+        }
+
+        Set<Integer> blockingTransactions = new HashSet<>();
+        List<Pair<Integer, LockType>> list = new ArrayList<>();
+
+        // add all the request waiting for the same variable to list
+        for (Operation pendingOperation : pendingList) {
+            // if already in pending list, return empty set
+            if (pendingOperation == operation) {
+                return new HashSet<>();
+            }
+            if (pendingOperation.getVariableId() == variableId) {
+                if (transactions.get(pendingOperation.getTransactionId()).getType() == TransactionType.READ_ONLY) {
+                    continue;
+                }
+                list.add(new Pair<>(pendingOperation.getTransactionId(), pendingOperation.getType() == OperationType.WRITE ? LockType.WRITE : LockType.READ));
+            }
+        }
+
+        // if request for read lock, find the latest request for write lock
+        if (locktype == LockType.READ) {
+            for (int i = list.size() - 1; i >= 0; i--) {
+                int currentTransaction = list.get(i).getKey();
+                LockType currentLockType = list.get(i).getValue();
+                if (currentLockType == LockType.WRITE) {
+                    if (currentTransaction != transactionId) {
+                        blockingTransactions.add(currentTransaction);
+                    }
+                    break;
+                }
+            }
+            return blockingTransactions;
+        }
+
+        // if request for write lock, find the latest request for read locks or a latest request for write lock that blocks this write lock request
+
+        // if there is no blocking transactions
+        if (list.isEmpty()) {
+            return blockingTransactions;
+        }
+
+        LockType blockingType = list.get(list.size() - 1).getValue();
+        // if the write lock is blocked by a single write lock
+        if (blockingType == LockType.WRITE) {
+            blockingTransactions.add(list.get(list.size() - 1).getKey());
+            return blockingTransactions;
+        }
+        // if the write lock is blocked by a set of read locks
+        for (int i = list.size() - 1; i >= 0; i--) {
+            int currentTransaction = list.get(i).getKey();
+            LockType currentLockType = list.get(i).getValue();
+            if (currentLockType == LockType.WRITE) {
+                break;
+            }
+            if (currentTransaction != transactionId) {
+                blockingTransactions.add(currentTransaction);
+            }
+        }
+        return blockingTransactions;
     }
 
 }
