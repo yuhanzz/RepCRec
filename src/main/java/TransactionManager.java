@@ -432,9 +432,16 @@ public class TransactionManager {
      */
     public void removeTransactionFromWaitsForGraph(int transactionId) {
         waitsForGraph.remove(transactionId);
+        Set<Integer> sourceToRemove = new HashSet<>();
         for (int sourceVertex : waitsForGraph.keySet()) {
             Set<Integer> destinationVertice = waitsForGraph.get(sourceVertex);
             destinationVertice.remove(transactionId);
+            if (destinationVertice.isEmpty()) {
+                sourceToRemove.add(sourceVertex);
+            }
+        }
+        for (int source : sourceToRemove) {
+            waitsForGraph.remove(source);
         }
     }
 
@@ -444,6 +451,7 @@ public class TransactionManager {
      * @return true if there is any cycle detected, false if not
      */
     public boolean deadLockDetection() {
+        queryState();
         boolean hasCycle = true;
         boolean detected = false;
         while(hasCycle)
@@ -456,13 +464,13 @@ public class TransactionManager {
             else
             {
                 int victim = -1;
-                int minTime = Integer.MAX_VALUE; 
+                int maxTime = -1;
                 for(Integer transaction: cycle)
                 {
-                    if(transactions.get(transaction).getBeginTime() < minTime)
+                    if(transactions.get(transaction).getBeginTime() > maxTime)
                     {
                         victim = transaction;
-                        minTime = transactions.get(transaction).getBeginTime();
+                        maxTime = transactions.get(transaction).getBeginTime();
                     }
                 }
                 outputPrinter.printDeadlock(victim);
@@ -475,71 +483,61 @@ public class TransactionManager {
 
     /**
      * Helper method for finding a cycle in waitsForGraph
-     * @param transactions the graph
+     * @param graph the graph
      * @return the set of transactions in cycle
      */
-    public Set<Integer> detect(Map<Integer, Set<Integer>> transactions)
+    public Set<Integer> detect(Map<Integer, Set<Integer>> graph)
     {
-        Map<Integer,Integer> degree = new HashMap<>();
-        Map<Integer,Set<Integer>> children = new HashMap<>();
+        Map<Integer,Integer> inDegree = new HashMap<>();
+        Set<Integer> allNodes = new HashSet<>();
 
-        for (Integer tx : transactions.keySet())
+        for (int vertex : graph.keySet()) {
+            allNodes.add(vertex);
+            for (int destination : graph.get(vertex)) {
+                allNodes.add(destination);
+            }
+        }
+
+        for (int vertex : allNodes)
         {
-            degree.put(tx, transactions.get(tx).size());
-            if (!children.containsKey(tx))
-            {
-                children.put(tx, new HashSet<>());
+            int degree = 0;
+            for (int source : graph.keySet()) {
+                if (graph.get(source).contains(vertex)) {
+                    degree++;
+                }
             }
-
-            for (Integer parent : transactions.get(tx))
-            {
-                Set<Integer> dependent = children.getOrDefault(parent, new HashSet<>());
-                dependent.add(tx);
-            }
+            inDegree.put(vertex, degree);
         }
 
         Queue<Integer> queue = new LinkedList<>();
-        for (Integer key : children.keySet())
+        for (int vertex : allNodes)
         {
-            if (degree.get(key) == 0)
+            if (inDegree.get(vertex) == 0)
             {
-                queue.offer(key);
+                queue.offer(vertex);
             }
         }
-
-        int count = queue.size();
 
         while (!queue.isEmpty())
         {
-            int tx = queue.poll();
-            for (Integer child : children.get(tx))
+            int source = queue.poll();
+            inDegree.remove(source);
+            Set<Integer> destinations = graph.getOrDefault(source, new HashSet<>());
+            for (int destination : destinations)
             {
-                int d = degree.get(child);
-                if (d > 0)
-                {
-                    degree.put(child, d - 1);
-                    if (d == 1)
-                    {
-                        queue.offer(child);
-                        count++;
-                    }
+                int degree = inDegree.get(destination);
+                if (degree == 1) {
+                    inDegree.remove(destination);
+                    queue.offer(destination);
+                } else {
+                    inDegree.put(destination, degree - 1);
                 }
             }
         }
 
-        Set<Integer> result = new HashSet<>();
-        if (count < transactions.size())
-        {
-            for (Integer key : degree.keySet())
-            {
-                if (degree.get(key) != 0)
-                {
-                    result.add(key);
-                }
-            }
-        }
-
-        return result;
+        Set<Integer> cycle = inDegree.keySet();
+        outputPrinter.printCycle(cycle);
+        return cycle;
     }
 
     /**

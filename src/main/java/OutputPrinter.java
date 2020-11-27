@@ -69,4 +69,14 @@ public class OutputPrinter {
             }
         }
     }
+
+    public void printCycle(Set<Integer> cycle) {
+        if (verbose && !cycle.isEmpty()) {
+            System.out.print("cycle detected:");
+            for (int node : cycle) {
+                System.out.print(" T" + node);
+            }
+            System.out.print('\n');
+        }
+    }
 }
