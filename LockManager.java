@@ -1,8 +1,10 @@
+import javafx.util.Pair;
 import java.util.*;
+
 public class LockManager {
 
     private Map<Integer, Map<Integer,LockType>> lockTable;
-    private Map<Integer, List<Integer>> waitingList;
+    private Map<Integer, List<Pair<Integer, LockType>>> waitingList;
 
     /**
      * Initialize the lock manager
@@ -18,50 +20,64 @@ public class LockManager {
      * @param transactionId the transaction acquiring the lock
      * @param variableId the variable id
      * @param lockType the lock type (read / write)
-     * @return if acquire lock successfully, return empty set; if blocked by waiting list, return a set contains - 1; if blocked by other lock holders, return a set containing conflicting transactions
+     * @return if acquire lock successfully, return empty set; if blocked, return a set containing conflicting transactions
      */
     public Set<Integer> acquireLock(int transactionId, int variableId, LockType lockType) {
         Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
-        List<Integer> waitingTransactions = waitingList.get(variableId);
-        Set<Integer> conflictingTransactions = new HashSet<>();
+        List<Pair<Integer, LockType>> waitlist = waitingList.getOrDefault(variableId, new ArrayList<>());
 
-        // if the waiting list is not empty, and this transaction is not at the top of the list, then should be blocked
-        if (waitingTransactions != null) {
-            if (waitingTransactions.size() > 0 && waitingTransactions.get(0) != transactionId) {
-                addToWaitingList(transactionId, variableId);
-                conflictingTransactions.add(-1);
-                return conflictingTransactions;
-            }
+        // if is not at the top of wait list, add to wait list
+        if (!waitlist.isEmpty() && waitlist.get(0).getKey() != transactionId) {
+            Set<Integer> conflictingTransactions = getConflictingTransaciton(transactionId, variableId, lockType);
+            addToWaitingList(transactionId, variableId, lockType);
+            return conflictingTransactions;
         }
 
-        // if try to acquire read lock
+        // check whether this is retry
+        boolean retry = false;
+        if (!waitlist.isEmpty()) {
+            retry = true;
+        }
+
+        // if acquiring read lock
         if (lockType == LockType.READ) {
             for (int transaction : locks.keySet()) {
                 if (locks.get(transaction) == LockType.WRITE) {
-                    // there could only be one transaction holding a write lock on this variable
-                    addToWaitingList(transactionId, variableId);
-                    conflictingTransactions.add(transactionId);
+                    if (retry) {
+                        Set<Integer> conflictingTransactions = new HashSet<>();
+                        conflictingTransactions.add(transaction);
+                        return conflictingTransactions;
+                    }
+                    Set<Integer> conflictingTransactions = getConflictingTransaciton(transactionId, variableId, lockType);
+                    addToWaitingList(transactionId, variableId, lockType);
                     return conflictingTransactions;
                 }
             }
 
             // acquire read lock successfully
-            removeFromWaitingList(transactionId, variableId);
+            if (retry) {
+                popWaitingList(variableId);
+            }
             addLock(lockType, transactionId, variableId);
             return new HashSet<>();
         }
 
         // if try to acquire write lock
-        for (int transaction : locks.keySet()) {
-            conflictingTransactions.add(transactionId);
+        if (!locks.keySet().isEmpty()) {
+            if (retry) {
+                return locks.keySet();
+            }
+            Set<Integer> conflictingTransactions = getConflictingTransaciton(transactionId, variableId, lockType);
+            addToWaitingList(transactionId, variableId, lockType);
+            return conflictingTransactions;
         }
+
         // acquire write lock successfully
-        if (conflictingTransactions.isEmpty()) {
-            removeFromWaitingList(transactionId, variableId);
-            addLock(lockType, transactionId, variableId);
-            return new HashSet<>();
+        if (retry) {
+            popWaitingList(variableId);
         }
-        return conflictingTransactions;
+        addLock(lockType, transactionId, variableId);
+        return new HashSet<>();
     }
 
     /**
@@ -97,7 +113,8 @@ public class LockManager {
         }
         // remove this transaction from waiting list
         for (int variableId : waitingList.keySet()) {
-            removeFromWaitingList(transactionId, variableId);
+            List<Pair<Integer, LockType>> waitlist = waitingList.getOrDefault(variableId, new ArrayList<>());
+            waitlist.removeIf(item -> (item.getKey() == transactionId));
         }
 
     }
@@ -112,26 +129,92 @@ public class LockManager {
     }
 
     /**
-     * Helper method for adding a transaction to waiting list
-     * side effect: will change waitingList
-     * @param transactionId the transaction added to the waiting list
-     * @param variableId which variable the transaction is waiting for
+     * Find the transactions to wait for
+     * @param transactionId the transaction id
+     * @param variableId the variable id
+     * @param locktype the lock type that attempt to acquire
+     * @return the set of transactions that the current transaction needs to wait for
      */
-    private void addToWaitingList(int transactionId, int variableId) {
-        List<Integer> waitingTransactions = waitingList.getOrDefault(variableId, new ArrayList<>());
-        waitingTransactions.add(transactionId);
-        waitingList.put(variableId, waitingTransactions);
+    private Set<Integer> getConflictingTransaciton(int transactionId, int variableId, LockType locktype) {
+        List<Pair<Integer, LockType>> list = waitingList.get(variableId);
+
+        // prepend the transactions that currently holding the lock to the list
+        Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
+        for (int transaction : locks.keySet()) {
+            Pair<Integer, LockType> lock = new Pair<>(transaction, locks.get(transaction));
+            list.add(0, lock);
+        }
+
+        // find the most recent transactions that have conflict
+        Set<Integer> conflictingTransactions = new HashSet<>();
+
+        // if acquiring read lock, find the latest write lock
+        if (locktype == LockType.READ) {
+            for (int i = list.size() - 1; i >= 0; i--) {
+                int currentTransaction = list.get(i).getKey();
+                LockType currentLockType = list.get(i).getValue();
+                if (currentLockType == LockType.WRITE) {
+                    if (currentTransaction != transactionId) {
+                        conflictingTransactions.add(currentTransaction);
+                    }
+                    break;
+                }
+            }
+            return conflictingTransactions;
+        }
+
+        // if acquiring write lock, find the latest read locks or a latest write lock that blocks this write lock request
+
+        // if there is no blocking transactions
+        if (list.isEmpty()) {
+            return conflictingTransactions;
+        }
+
+        LockType blockingType = list.get(list.size() - 1).getValue();
+        // if the write lock is blocked by a single write lock
+        if (blockingType == LockType.WRITE) {
+            conflictingTransactions.add(list.get(list.size() - 1).getKey());
+            return conflictingTransactions;
+        }
+        // if the write lock is blocked by a set of read locks
+        for (int i = list.size() - 1; i >= 0; i--) {
+            int currentTransaction = list.get(i).getKey();
+            LockType currentLockType = list.get(i).getValue();
+            if (currentLockType == LockType.WRITE) {
+                break;
+            }
+            if (currentTransaction != transactionId) {
+                conflictingTransactions.add(currentTransaction);
+            }
+        }
+        return conflictingTransactions;
     }
 
     /**
-     * Helper method for removing a transaction from waiting list
-     * side effect: might change waitingList
-     * @param transactionId the transaction that will be removed from the waiting list if it is on the waiting list
-     * @param variableId which variable the transaction is waiting for
+     * Helper method for adding a transaction to waiting list
+     * side effect: will change waitingList
+     * @param transactionId the transaction id
+     * @param variableId the variable id
+     * @param lockType the lock type
      */
-    private void removeFromWaitingList(int transactionId, int variableId) {
-        List<Integer> waitingTransactions = waitingList.getOrDefault(variableId, new ArrayList<>());
-        waitingTransactions.remove(transactionId);
+    private void addToWaitingList(int transactionId, int variableId, LockType lockType) {
+        List<Pair<Integer, LockType>> waitlist = waitingList.getOrDefault(variableId, new ArrayList<>());
+        waitlist.add(new Pair<>(transactionId, lockType));
+        waitingList.put(variableId, waitlist);
+    }
+
+    /**
+     * Helper method for removing the first waiting transaction from waiting list
+     * side effect: might change waitingList
+     * @param variableId the variable id
+     */
+    private void popWaitingList(int variableId) {
+        if (waitingList.containsKey(variableId)) {
+            List<Pair<Integer, LockType>> waitlist = waitingList.get(variableId);
+            if (!waitlist.isEmpty()) {
+                waitlist.remove(0);
+            }
+        }
     }
 
     /**

@@ -71,9 +71,7 @@ public class TransactionManager {
             if (!conflictingTransactions.isEmpty()) {
                 Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
                 for (int vertex : conflictingTransactions) {
-                    if (vertex != -1) {
-                        vertices.add(vertex);
-                    }
+                    vertices.add(vertex);
                 }
                 waitsForGraph.put(transactionId, vertices);
                 transaction.setStatus(TransactionStatus.BLOCKED);
@@ -193,9 +191,7 @@ public class TransactionManager {
                 writeLockAvailable = false;
                 Set<Integer> vertices = waitsForGraph.getOrDefault(transactionId, new HashSet<>());
                 for (int vertex : conflictingTransactions) {
-                    if (vertex != -1) {
-                        vertices.add(vertex);
-                    }
+                    vertices.add(vertex);
                 }
                 waitsForGraph.put(transactionId, vertices);
             }
