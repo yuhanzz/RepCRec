@@ -113,4 +113,27 @@ public class LockManager {
         }
         lockTable.put(variableId, locks);
     }
+
+    /**
+     * Check whether the transaction is holding the lock
+     * @param lockType the lock type
+     * @param variableId the variable id
+     * @param transactionId the transaction id
+     * @return true if the transaction is holding the lock, false if not
+     */
+    public boolean isHoldingLock(LockType lockType, int variableId, int transactionId) {
+        if (!lockTable.containsKey(variableId)) {
+            return false;
+        }
+        Map<Integer,LockType> locks = lockTable.get(variableId);
+
+        if (!locks.containsKey(transactionId)) {
+            return false;
+        }
+
+        if (locks.get(transactionId) == LockType.READ && lockType == LockType.WRITE) {
+            return false;
+        }
+        return true;
+    }
 }

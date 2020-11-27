@@ -58,7 +58,13 @@ class Site {
      * @param updatedVariables the updated values of the variables touched by this transaction
      */
     public void commit(int transactionId, int time, Map<Integer, Integer> updatedVariables) {
-        dataManager.commitVariables(time, updatedVariables);
+        Map<Integer, Integer> writtenValues = new HashMap<>();
+        for (int variableId : updatedVariables.keySet()) {
+            if (lockManager.isHoldingLock(LockType.WRITE, variableId, transactionId)) {
+                writtenValues.put(variableId, updatedVariables.get(variableId));
+            }
+        }
+        dataManager.commitVariables(time, writtenValues);
         lockManager.releaseAllLocks(transactionId);
     }
 

@@ -81,12 +81,10 @@ public class DataManager {
      */
     public void commitVariables(int time, Map<Integer, Integer> updatedVariables) {
         for (int variableId : updatedVariables.keySet()) {
-            if (dataCopies.containsKey(variableId)) {
-                DataCopy dataCopy = dataCopies.get(variableId);
-                int value = updatedVariables.get(variableId);
-                dataCopy.addCommitHistory(time, value);
-                dataCopy.setReadAvailable(true);
-            }
+            DataCopy dataCopy = dataCopies.get(variableId);
+            int value = updatedVariables.get(variableId);
+            dataCopy.addCommitHistory(time, value);
+            dataCopy.setReadAvailable(true);
         }
     }
 
