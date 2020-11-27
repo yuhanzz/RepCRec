@@ -5,8 +5,13 @@ import java.util.Set;
 
 public class OutputPrinter {
     private boolean verbose;
+    StringBuffer buffer = new StringBuffer();
     public OutputPrinter(boolean verbose) {
         this.verbose = verbose;
+    }
+
+    public void print() {
+        System.out.println(buffer.toString());
     }
 
     /**
@@ -16,55 +21,56 @@ public class OutputPrinter {
      * sample output: site 1 – x2: 6, x3: 2, ... x20: 3
      */
     public void dumpSite(int siteId, Map<Integer, DataCopy> dataCopies) {
-        System.out.print("site " + siteId);
+        buffer.append("site " + siteId);
         boolean firstEntry = true;
         for (int i = 1; i <= 20; i++) {
             if (dataCopies.containsKey(i)) {
                 if (firstEntry) {
-                    System.out.print(" – ");
+                    buffer.append(" – ");
                     firstEntry = false;
                 } else {
-                    System.out.print(", ");
+                    buffer.append(", ");
                 }
-                System.out.print("x" + i + ": " + dataCopies.get(i).getLatestCommitValue());
+                buffer.append("x" + i + ": " + dataCopies.get(i).getLatestCommitValue());
             }
         }
-        System.out.print('\n');
+        buffer.append('\n');
     }
 
     public void printReadSuccess(int variableId, int value, int transactionId) {
-        System.out.print("x" + variableId + ": " + value);
+        buffer.append("x" + variableId + ": " + value);
         if (verbose) {
-            System.out.print(" read by T" + transactionId);
+            buffer.append(" read by T" + transactionId);
         }
-        System.out.print('\n');
+        buffer.append('\n');
     }
 
     public void printWriteSuccess(int variableId, int value, int transactionId) {
         if (verbose) {
-            System.out.print(value + " written to x" + variableId + " by T" + transactionId + '\n');
+            buffer.append(value + " written to x" + variableId + " by T" + transactionId + '\n');
         }
     }
 
     public void printCommitSuccess(int transactionId) {
-        System.out.println("T" + transactionId + " commit");
+        buffer.append("T" + transactionId + " commit\n");
     }
 
     public void printAbortSuccess(int transactionId) {
-        System.out.println("T" + transactionId + " abort");
+        buffer.append("T" + transactionId + " abort\n");
     }
 
     public void printDeadlock(int transactionId) {
         if (verbose) {
-            System.out.println("Choose T" + transactionId + " to abort for dead lock");
+            buffer.append("Choose the youngest transaction T" + transactionId + " to abort\n");
         }
     }
 
     public void printWaitsForGraph(Map<Integer, Set<Integer>> waitsForGraph) {
         if (verbose) {
+            buffer.append("waits for graph:\n");
             for (int sourceNode : waitsForGraph.keySet()) {
                 for (int destNode : waitsForGraph.get(sourceNode)) {
-                    System.out.println("T" + sourceNode + " waiting for T" + destNode);
+                    buffer.append("T" + sourceNode + " -> T" + destNode + '\n');
                 }
             }
         }
@@ -72,11 +78,11 @@ public class OutputPrinter {
 
     public void printCycle(Set<Integer> cycle) {
         if (verbose && !cycle.isEmpty()) {
-            System.out.print("cycle detected:");
+            buffer.append("cycle detected:");
             for (int node : cycle) {
-                System.out.print(" T" + node);
+                buffer.append(" T" + node);
             }
-            System.out.print('\n');
+            buffer.append('\n');
         }
     }
 }

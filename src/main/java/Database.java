@@ -99,10 +99,12 @@ public class Database {
                 int value = numbers.get(2);
                 Operation operation = new Operation(OperationType.WRITE, transactionId, variableId, value, time);
                 transactionManager.handleNewRequest(operation, time);
+            } else {
+                break;
             }
 
-            transactionManager.queryState();
         }
+        outputPrinter.print();
     }
     
 }
