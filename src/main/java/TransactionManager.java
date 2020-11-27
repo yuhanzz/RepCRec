@@ -596,4 +596,15 @@ public class TransactionManager {
         outputPrinter.printWaitsForGraph(waitsForGraph);
     }
 
+    /**
+     * Add site failure record
+     * @param siteId the failed site id
+     * @param time the failed time
+     */
+    public void receiveFailureNotice(int siteId, int time) {
+        List<Integer> history = failureHistory.getOrDefault(siteId, new ArrayList<>());
+        history.add(time);
+        failureHistory.put(siteId, history);
+    }
+
 }

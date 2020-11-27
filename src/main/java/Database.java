@@ -81,6 +81,7 @@ public class Database {
                 int siteId = numbers.get(0);
                 Site site = sites.get(siteId);
                 site.fail();
+                transactionManager.receiveFailureNotice(siteId, time);
             } else if (line.contains("end")) {
                 int transactionId = numbers.get(0);
                 Operation operation = new Operation(OperationType.COMMIT, transactionId, time);
