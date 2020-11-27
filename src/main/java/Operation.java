@@ -1,3 +1,5 @@
+package src.main.java;
+
 public class Operation {
     private OperationType type;
     private int transactionId;

@@ -1,3 +1,5 @@
+package src.main.java;
+
 import javafx.util.Pair;
 
 import java.util.*;
@@ -137,15 +139,6 @@ public class TransactionManager {
         transaction.setStatus(TransactionStatus.BLOCKED);
         return false;
     }
-
-
-    /**
-     * write to all the available copies
-     * return false if waiting for locks or all sites are down
-     * may change the waitsForGraph, and transaction's holding locks
-     * may change a transaction's accessedSite
-     * will set new status for transaction
-     */
 
     /**
      * Attempt to write a variable
@@ -381,7 +374,7 @@ public class TransactionManager {
         Transaction transaction = transactions.get(operation.getTransactionId());
 
         // if the transaction is currently blocked, add this operation to pending list
-        if (transaction.getStatus() == TransactionStatus.BLOCKED) {
+        if (transaction != null && transaction.getStatus() == TransactionStatus.BLOCKED) {
             pendingList.add(operation);
         }
 
@@ -418,7 +411,6 @@ public class TransactionManager {
             boolean retrySuccessful = execute(operation, currentTime);
 
             if (retrySuccessful) {
-                currentTime++;
                 finishedOperations.add(operation);
             } else {
                 // if retry failed, add its transaction to blocked set
@@ -473,6 +465,7 @@ public class TransactionManager {
                         minTime = transactions.get(transaction).getBeginTime();
                     }
                 }
+                outputPrinter.printDeadlock(victim);
                 abort(victim);
                 detected = true;
             }
@@ -596,6 +589,13 @@ public class TransactionManager {
             }
             dataLocation.put(i, dataInfo);
         }
+    }
+
+    /**
+     * will print waitsForGraph in verbose mode
+     */
+    public void queryState() {
+        outputPrinter.printWaitsForGraph(waitsForGraph);
     }
 
 }

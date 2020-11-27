@@ -1,3 +1,5 @@
+package src.main.java;
+
 import java.util.*;
 class Site {
     int siteId;
@@ -7,7 +9,7 @@ class Site {
     SiteStatus siteStatus;
 
     /**
-     * initialize the Site
+     * initialize the src.main.java.Site
      */
     public Site(int siteId, OutputPrinter outputPrinter) {
         this.siteId = siteId;

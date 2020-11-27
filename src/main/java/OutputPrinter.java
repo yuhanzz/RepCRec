@@ -1,4 +1,7 @@
+package src.main.java;
+
 import java.util.Map;
+import java.util.Set;
 
 public class OutputPrinter {
     private boolean verbose;
@@ -23,7 +26,7 @@ public class OutputPrinter {
                 } else {
                     System.out.print(", ");
                 }
-                System.out.print("x" + i + ": " + dataCopies.get(i).getCommittedValue());
+                System.out.print("x" + i + ": " + dataCopies.get(i).getLatestCommitValue());
             }
         }
         System.out.print('\n');
@@ -53,7 +56,17 @@ public class OutputPrinter {
 
     public void printDeadlock(int transactionId) {
         if (verbose) {
-            System.out.println("Choose T" + transactionId + "to abort for dead lock");
+            System.out.println("Choose T" + transactionId + " to abort for dead lock");
+        }
+    }
+
+    public void printWaitsForGraph(Map<Integer, Set<Integer>> waitsForGraph) {
+        if (verbose) {
+            for (int sourceNode : waitsForGraph.keySet()) {
+                for (int destNode : waitsForGraph.get(sourceNode)) {
+                    System.out.println("T" + sourceNode + " waiting for T" + destNode);
+                }
+            }
         }
     }
 }

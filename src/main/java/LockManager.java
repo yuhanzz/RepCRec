@@ -1,3 +1,5 @@
+package src.main.java;
+
 import javafx.util.Pair;
 import java.util.*;
 
@@ -136,7 +138,7 @@ public class LockManager {
      * @return the set of transactions that the current transaction needs to wait for
      */
     private Set<Integer> getConflictingTransaciton(int transactionId, int variableId, LockType locktype) {
-        List<Pair<Integer, LockType>> list = waitingList.get(variableId);
+        List<Pair<Integer, LockType>> list = waitingList.getOrDefault(variableId, new ArrayList<>());
 
         // prepend the transactions that currently holding the lock to the list
         Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());

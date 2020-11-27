@@ -1,3 +1,5 @@
+package src.main.java;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -15,6 +17,7 @@ public class Database {
      */
     public Database(boolean verbose) {
         time = 0;
+        sites = new HashMap<>();
         outputPrinter = new OutputPrinter(verbose);
         // initialize the sites
         for (int i = 1; i <= 10; i++) {
@@ -45,51 +48,60 @@ public class Database {
 
         // parse and execute each line
         while (scanner.hasNextLine()) {
+            time++;
+
             if (transactionManager.deadLockDetection()) {
                 transactionManager.retry(time);
             }
 
             // parse the line
             String line = scanner.nextLine();
-            Matcher matcher = Pattern.compile("\\d+").matcher(line);
+
+            Pattern pattern = Pattern.compile("[0-9]+");
+            List<Integer> numbers = new ArrayList<>();
+            Matcher matcher = pattern.matcher(line);
+            while (matcher.find()) {
+                numbers.add(Integer.valueOf(matcher.group()));
+            }
 
             if (line.contains("beginRO")) {
-                int transactionId = Integer.valueOf(matcher.group());
+                int transactionId = numbers.get(0);
                 Operation operation = new Operation(OperationType.BEGIN_READ_ONLY, transactionId, time);
                 transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("begin")) {
-                int transactionId = Integer.valueOf(matcher.group());
+                int transactionId = numbers.get(0);
                 Operation operation = new Operation(OperationType.BEGIN, transactionId, time);
                 transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("recover")) {
-                int siteId = Integer.valueOf(matcher.group());
+                int siteId = numbers.get(0);
                 Site site = sites.get(siteId);
                 site.recover();
                 transactionManager.retry(time);
             } else if (line.contains("fail")) {
-                int siteId = Integer.valueOf(matcher.group());
+                int siteId = numbers.get(0);
                 Site site = sites.get(siteId);
                 site.fail();
             } else if (line.contains("end")) {
-                int transactionId = Integer.valueOf(matcher.group());
+                int transactionId = numbers.get(0);
                 Operation operation = new Operation(OperationType.COMMIT, transactionId, time);
                 transactionManager.handleNewRequest(operation, time);
+                transactionManager.retry(time);
             } else if (line.contains("dump")) {
                 dump();
             } else if (line.contains("R")) {
-                int transactionId = Integer.valueOf(matcher.group());
-                int variableId = Integer.valueOf(matcher.group());
+                int transactionId = numbers.get(0);
+                int variableId = numbers.get(1);
                 Operation operation = new Operation(OperationType.READ, transactionId, variableId, time);
                 transactionManager.handleNewRequest(operation, time);
             } else if (line.contains("W")) {
-                int transactionId = Integer.valueOf(matcher.group());
-                int variableId = Integer.valueOf(matcher.group());
-                int value = Integer.valueOf(matcher.group());
+                int transactionId = numbers.get(0);
+                int variableId = numbers.get(1);
+                int value = numbers.get(2);
                 Operation operation = new Operation(OperationType.WRITE, transactionId, variableId, value, time);
                 transactionManager.handleNewRequest(operation, time);
             }
 
-            time++;
+            transactionManager.queryState();
         }
     }
     

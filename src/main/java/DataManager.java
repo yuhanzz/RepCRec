@@ -1,3 +1,5 @@
+package src.main.java;
+
 import javafx.util.Pair;
 import java.util.*;
 
@@ -11,6 +13,7 @@ public class DataManager {
      */
     public DataManager(int siteId) {
         this.siteId = siteId;
+        dataCopies = new HashMap<>();
         for (int i = 1; i <= 20; i++) {
             if (i % 2 == 0) {
                 dataCopies.put(i, new DataCopy(DataType.REPLICATED, 10 * i));

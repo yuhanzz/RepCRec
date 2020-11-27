@@ -1,3 +1,4 @@
+package src.main.java;
 /**
  * records all the information that the transaction manager needs to know about a variable
  */
