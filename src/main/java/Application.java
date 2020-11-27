@@ -11,8 +11,8 @@ public class Application {
         }
         Database db = new Database(verbose);
         try {
-            if (args.length > 1 && args[0].equals("-f")) {
-                db.simulate(new File(args[1]));
+            if (args.length == 1) {
+                db.simulate(new File(args[0]));
             } else {
                 db.simulate(null);
             }
