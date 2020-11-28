@@ -27,7 +27,7 @@ public class TransactionManager {
         Transaction transaction = transactions.get(transactionId);
 
         // if the local cache has this variable, read is successful
-        if (transaction.isHoldingLock(LockType.READ, variableId)) {
+        if (transaction.getLocalCache().containsKey(variableId)) {
             int value = transaction.read(variableId);
             transaction.setStatus(TransactionStatus.ACTIVE);
             outputPrinter.printReadSuccess(variableId, value, transactionId);
