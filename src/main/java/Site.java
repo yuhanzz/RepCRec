@@ -10,6 +10,8 @@ class Site {
 
     /**
      * initialize the src.main.java.Site
+     * @param siteId the site being initialized 
+     * @param outputPrinter 
      */
     public Site(int siteId, OutputPrinter outputPrinter) {
         this.siteId = siteId;

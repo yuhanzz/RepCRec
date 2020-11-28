@@ -64,7 +64,7 @@ public class LockManager {
     public void releaseWriteLock(int transactionId, int variableId, boolean holdingReadLock) {
         // remove the lock
         Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
-        if (!locks.containsKey(transactionId)) {
+        if (locks.containsKey(transactionId)) {
             locks.remove(transactionId);
         }
         lockTable.put(variableId, locks);

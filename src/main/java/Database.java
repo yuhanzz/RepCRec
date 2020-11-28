@@ -14,6 +14,7 @@ public class Database {
 
     /**
      * initialize the sites and the transaction manager
+     * @param verbose adding additional information for debugging purposes
      */
     public Database(boolean verbose) {
         time = 0;
@@ -27,6 +28,9 @@ public class Database {
         transactionManager = new TransactionManager(sites, outputPrinter);
     }
 
+    /**
+     * Dumping all the site's information
+     */
     public void dump() {
         for (int i = 1; i <= 10; i++) {
             Site site = sites.get(i);
@@ -35,7 +39,10 @@ public class Database {
     }
 
     /**
-     * 
+     * parses each line of the input file and does the corresponding commands 
+     * (e.g. beginRO, begin, recover, fail, end, dump, read, write)
+     * @param inputFile the file with the commands 
+     * @throws FileNotFoundException
      */
     public void simulate(File inputFile) throws FileNotFoundException {
         // initialize scanner
