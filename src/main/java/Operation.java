@@ -7,15 +7,25 @@ public class Operation {
     private int valueToWrite;
     private int arrivingTime;
 
-    // for begin, begin_read_only, commit, dump
+    /**
+     * Constructor for begin, begin_read_only, commit
+     * @param type Type of Operation (begin, begin_read_only, commit)
+     * @param transactionId the transacationId for this operation 
+     * @param arrivingTime the time this operation arrived 
+     */
     public Operation(OperationType type, int transactionId, int arrivingTime) {
         this.type = type;
         this.transactionId = transactionId;
-        this.variableId = -1;
         this.arrivingTime = arrivingTime;
     }
 
-    // for read
+    /**
+     * Constructor for read 
+     * @param type Type of Operation (read)
+     * @param transactionId the transacationId for this operation 
+     * @param variableId the variable the transaction wants to read 
+     * @param arrivingTime the time this operation arrived 
+     */
     public Operation(OperationType type, int transactionId, int variableId, int arrivingTime) {
         this.type = type;
         this.transactionId = transactionId;
@@ -23,7 +33,14 @@ public class Operation {
         this.arrivingTime = arrivingTime;
     }
 
-    // for write
+    /**
+     * Constructor for write 
+     * @param type Type of Operation (write)
+     * @param transactionId the transacationId for this operation
+     * @param variableId the variable the transaction wants to write to 
+     * @param valueToWrite the value the transaction wants to write to the variable 
+     * @param arrivingTime the time this operation arrived 
+     */
     public Operation(OperationType type, int transactionId, int variableId, int valueToWrite, int arrivingTime) {
         this.type = type;
         this.transactionId = transactionId;
@@ -32,22 +49,42 @@ public class Operation {
         this.arrivingTime = arrivingTime;
     }
 
+    /**
+     * Getting the type of the Operation
+     * @return the type of the Operation 
+     */
     public OperationType getType() {
         return type;
     }
 
+    /**
+     * Getting the transaction of the Operation 
+     * @return the transaction of the Operation 
+     */
     public int getTransactionId() {
         return transactionId;
     }
 
+    /**
+     * Getting the variable of the Operation 
+     * @return the variable of the Operation 
+     */
     public int getVariableId() {
         return variableId;
     }
 
+    /**
+     * Getting the value that is being written to a variable of the Operation 
+     * @return the value that is being written to a variable of the Operation 
+     */
     public int getValueToWrite() {
         return valueToWrite;
     }
 
+    /**
+     * Getting the time the operation arrived 
+     * @return the time the operation arrived 
+     */
     public int getArrivingTime() {
         return arrivingTime;
     }
