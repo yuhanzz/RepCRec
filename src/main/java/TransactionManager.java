@@ -54,7 +54,7 @@ public class TransactionManager {
         Transaction transaction = transactions.get(transactionId);
 
         // firstly check if there is any blocking transactions in pending list to prevent starvation
-        Set<Integer> blockingTransactions = getBlockingTransaciton(operation);
+        Set<Integer> blockingTransactions = getBlockingTransaction(operation);
         if (!blockingTransactions.isEmpty()) {
             addEdgesToWaitsForGraph(transactionId, blockingTransactions);
             transaction.setStatus(TransactionStatus.BLOCKED);
@@ -166,7 +166,7 @@ public class TransactionManager {
         }
 
         // if need to acquire lock, firstly check if there is any blocking transactions in pending list to prevent starvation
-        Set<Integer> blockingTransactions = getBlockingTransaciton(operation);
+        Set<Integer> blockingTransactions = getBlockingTransaction(operation);
         if (!blockingTransactions.isEmpty()) {
             addEdgesToWaitsForGraph(transactionId, blockingTransactions);
             transaction.setStatus(TransactionStatus.BLOCKED);
@@ -634,7 +634,7 @@ public class TransactionManager {
      * @param operation the operation
      * @return the set of transactions that the current transaction needs to wait for
      */
-    private Set<Integer> getBlockingTransaciton(Operation operation) {
+    private Set<Integer> getBlockingTransaction(Operation operation) {
         int transactionId = operation.getTransactionId();
         int variableId = operation.getVariableId();
         LockType locktype;
