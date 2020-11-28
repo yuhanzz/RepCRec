@@ -42,7 +42,7 @@ public class LockManager {
         }
 
         // if acquire write lock successfully
-        if (locks.keySet().isEmpty()) {
+        if (locks.keySet().isEmpty() || (locks.keySet().size() == 1 && locks.containsKey(transactionId))) {
             addLock(lockType, transactionId, variableId);
             return new HashSet<>();
         }
