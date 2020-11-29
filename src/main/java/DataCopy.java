@@ -19,6 +19,7 @@ class DataCopy {
      * and also readavailable to be true 
      * @param dataType
      * @param initialValue
+     * @author Lillian Huang 
      */
     public DataCopy(DataType dataType, int initialValue)
     {
@@ -31,6 +32,7 @@ class DataCopy {
     /**
      * Getter of readAvailable
      * @return true if able to read this DataCopy else false 
+     * @author Lillian Huang
      */
     public boolean isReadAvailable() {
         return readAvailable;
@@ -39,6 +41,7 @@ class DataCopy {
     /**
      * Setter of readAvailable
      * @param readAvailable the value being set for readAvailable
+     * @author Lillian Huang
      */
     public void setReadAvailable(boolean readAvailable) {
         this.readAvailable = readAvailable;
@@ -47,6 +50,7 @@ class DataCopy {
     /**
      * getter of DataType
      * @return the DataType of this DataCopy 
+     * @author Lillian Huang
      */
     public DataType getDataType() {
         return dataType;
@@ -56,6 +60,7 @@ class DataCopy {
      * Adding committed value into the commitHistory
      * @param time the time of this commited value
      * @param value the value of the DataCopy at this time 
+     * @author Lillian Huang
      */
     public void addCommitHistory(int time, int value) {
         commitHistory.add(new Pair<>(time, value));
@@ -64,6 +69,7 @@ class DataCopy {
     /**
      * Getting the latest committed value of the DataCopy
      * @return the latest committed value of the DataCopy
+     * @author Lillian Huang
      */
     public int getLatestCommitValue() {
         Pair<Integer, Integer> latestCommit = commitHistory.get(commitHistory.size() - 1);
@@ -73,6 +79,7 @@ class DataCopy {
     /**
      * Getting the whole CommitHistory of this DataCopy
      * @return the whole CommitHistory of this DataCopy
+     * @author Lillian Huang
      */
     public List<Pair<Integer, Integer>> getCommitHistory() {
         return commitHistory;

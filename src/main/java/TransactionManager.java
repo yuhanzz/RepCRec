@@ -20,6 +20,7 @@ public class TransactionManager {
      * @param operation the read operation
      * @param currentTime current time
      * @return true if the read is successful, false if blocked
+     * @author Yuhan Zhou 
      */
     public boolean read(Operation operation, int currentTime) {
         int transactionId = operation.getTransactionId();
@@ -47,6 +48,7 @@ public class TransactionManager {
      * @param operation the read operation
      * @param currentTime current time
      * @return true if the read is successful, false if blocked
+     * @author Yuhan Zhou 
      */
     public boolean read_RW(Operation operation, int currentTime) {
         int transactionId = operation.getTransactionId();
@@ -105,6 +107,7 @@ public class TransactionManager {
      * side effect: will change the local cache and info of transactions
      * @param operation the read operation
      * @return true if the read is successful, false if blocked
+     * @author Yuhan Zhou 
      */
     public boolean read_RO(Operation operation) {
         int transactionId = operation.getTransactionId();
@@ -150,6 +153,7 @@ public class TransactionManager {
      * side effect: will change the local cache and info of transactions, the lock table, and waitsForGraph
      * @param operation the write operation
      * @return
+     * @author Yuhan Zhou 
      */
     public boolean write(Operation operation, int currentTime) {
         int transactionId = operation.getTransactionId();
@@ -243,6 +247,7 @@ public class TransactionManager {
      * @param transactionId the transaction to commit
      * @param currentTime current time
      * @return true if can commit, false if can not
+     * @author Yuhan Zhou 
      */
     public boolean commit(int transactionId, int currentTime) {
         Transaction transaction = transactions.get(transactionId);
@@ -299,6 +304,7 @@ public class TransactionManager {
      * Abort the transaction
      * side effect: will change lock manager, transaction status, and waitsForGraph
      * @param transactionId the transaction to abort
+     * @author Yuhan Zhou 
      */
     public void abort(int transactionId) {
         Transaction transaction = transactions.get(transactionId);
@@ -319,6 +325,7 @@ public class TransactionManager {
      * Begin a read-write transaction
      * side effect: will change transactions
      * @param operation the begin operation
+     * @author Yuhan Zhou 
      */
     public void begin(Operation operation) {
         int transactionId = operation.getTransactionId();
@@ -344,6 +351,7 @@ public class TransactionManager {
      * @param operation the operation to execute
      * @param currentTime the current time
      * @return true if the execution is successful, false if not blocked
+     * @author Yuhan Zhou 
      */
     public boolean execute(Operation operation, int currentTime) {
         boolean executionSuccessful = true;
@@ -378,6 +386,7 @@ public class TransactionManager {
      * side effect: might change pending list
      * @param operation the operation
      * @param currentTime the current time
+     * @author Yuhan Zhou 
      */
     public void handleNewRequest(Operation operation, int currentTime) {
         Transaction transaction = transactions.get(operation.getTransactionId());
@@ -397,6 +406,7 @@ public class TransactionManager {
     /**
      * Iterate through the pending list and retry
      * @param currentTime the current time
+     * @author Yuhan Zhou 
      */
     public void retry(int currentTime) {
         // maintain a set of transaction that are still blocked, initially the set is empty
@@ -438,6 +448,7 @@ public class TransactionManager {
      * Helper method for removing the edges in waitsForGraph whose source vertex or destination vertex is this transaction
      * side effect: will change the waitsForGraph
      * @param transactionId the transaction id
+     * @author Yuhan Zhou 
      */
     public void removeTransactionFromWaitsForGraph(int transactionId) {
         waitsForGraph.remove(transactionId);
@@ -458,6 +469,7 @@ public class TransactionManager {
      * Add edges to waits for graph
      * @param source the source node
      * @param destinations the destination nodes
+     * @author Yuhan Zhou 
      */
     private void addEdgesToWaitsForGraph(int source, Set<Integer> destinations) {
         Set<Integer> vertices = waitsForGraph.getOrDefault(source, new HashSet<>());
@@ -471,6 +483,7 @@ public class TransactionManager {
      * Deadlock detection
      * side effect: might abort transactions and change waitsForGraph
      * @return true if there is any cycle detected, false if not
+     * @author Lillian Huang 
      */
     public boolean deadLockDetection() {
         queryState();
@@ -507,6 +520,7 @@ public class TransactionManager {
      * Helper method for finding a cycle in waitsForGraph
      * @param graph the graph
      * @return the set of transactions in cycle
+     * @author Lillian Huang 
      */
     public Set<Integer> detect(Map<Integer, Set<Integer>> graph)
     {
@@ -568,6 +582,7 @@ public class TransactionManager {
      * @param start the start of the time range
      * @param end the end of the time range
      * @return true if there is a failure history between the range, false if there isn't
+     * @author Yuhan Zhou
      */
     private boolean hasFailureBetween(int siteId, int start, int end) {
         List<Integer> failures = failureHistory.getOrDefault(siteId, new ArrayList<>());
@@ -583,6 +598,7 @@ public class TransactionManager {
      * Initialize transaction manager
      * @param sites sites
      * @param outputPrinter output helper
+     * @author Yuhan Zhou
      */
     public TransactionManager(Map<Integer, Site> sites, OutputPrinter outputPrinter) {
 
@@ -613,6 +629,7 @@ public class TransactionManager {
 
     /**
      * will print waitsForGraph in verbose mode
+     * @author Yuhan Zhou
      */
     public void queryState() {
         outputPrinter.printWaitsForGraph(waitsForGraph);
@@ -622,6 +639,7 @@ public class TransactionManager {
      * Add site failure record
      * @param siteId the failed site id
      * @param time the failed time
+     * @author Yuhan Zhou
      */
     public void receiveFailureNotice(int siteId, int time) {
         List<Integer> history = failureHistory.getOrDefault(siteId, new ArrayList<>());
@@ -633,6 +651,7 @@ public class TransactionManager {
      * Find the blocking transactions in pending list to prevent starvation
      * @param operation the operation
      * @return the set of transactions that the current transaction needs to wait for
+     * @author Yuhan Zhou
      */
     private Set<Integer> getBlockingTransaction(Operation operation) {
         int transactionId = operation.getTransactionId();

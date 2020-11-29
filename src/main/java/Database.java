@@ -15,6 +15,7 @@ public class Database {
     /**
      * initialize the sites and the transaction manager
      * @param verbose adding additional information for debugging purposes
+     * @author Lillian Huang 
      */
     public Database(boolean verbose) {
         time = 0;
@@ -30,6 +31,7 @@ public class Database {
 
     /**
      * Dumping all the site's information
+     * @author Lillian Huang 
      */
     public void dump() {
         for (int i = 1; i <= 10; i++) {
@@ -43,6 +45,7 @@ public class Database {
      * (e.g. beginRO, begin, recover, fail, end, dump, read, write)
      * @param inputFile the file with the commands 
      * @throws FileNotFoundException
+     * @author Lillian Huang 
      */
     public void simulate(File inputFile) throws FileNotFoundException {
         // initialize scanner

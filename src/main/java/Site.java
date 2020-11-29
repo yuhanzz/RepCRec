@@ -12,6 +12,7 @@ class Site {
      * initialize the src.main.java.Site
      * @param siteId the site being initialized 
      * @param outputPrinter 
+     * @author Lillian Huang 
      */
     public Site(int siteId, OutputPrinter outputPrinter) {
         this.siteId = siteId;
@@ -23,6 +24,7 @@ class Site {
 
     /**
      * Dump the site
+     * @author Lillian Huang 
      */
     public void dump() {
         dataManager.dump(outputPrinter);
@@ -32,6 +34,7 @@ class Site {
     /**
      * Check whether the site is up
      * @return true if the site is up, false if the site is down
+     * @author Lillian Huang 
      */
     public boolean isUp() {
         return siteStatus == SiteStatus.UP;
@@ -40,6 +43,7 @@ class Site {
     /**
      * Get the data manager
      * @return data manager
+     * @author Lillian Huang 
      */
     public DataManager getDataManager() {
         return dataManager;
@@ -48,6 +52,7 @@ class Site {
     /**
      * Get the lock manager
      * @return lock manager
+     * @author Lillian Huang 
      */
     public LockManager getLockManager() {
         return lockManager;
@@ -58,6 +63,7 @@ class Site {
      * side effect: will change data manager and lock manager
      * @param transactionId the transaction to commit
      * @param updatedVariables the updated values of the variables touched by this transaction
+     * @author Lillian Huang 
      */
     public void commit(int transactionId, int time, Map<Integer, Integer> updatedVariables) {
         Map<Integer, Integer> writtenValues = new HashMap<>();
@@ -74,6 +80,7 @@ class Site {
      * Call lock manager to abort this transaction
      * side effect: will change lock manager
      * @param transactionId the transaction to abort
+     * @author Lillian Huang 
      */
     public void abort(int transactionId) {
         lockManager.releaseAllLocks(transactionId);
@@ -82,6 +89,7 @@ class Site {
     /**
      * Simulate site failure
      * side effect: will change siteStatus, lock manager, data manager
+     * @author Lillian Huang 
      */
     public void fail() {
 
@@ -93,6 +101,7 @@ class Site {
     /**
      * simulate site recovery
      * side effect: will change siteStatus, data manager
+     * @author Lillian Huang 
      */
     public void recover() {
 

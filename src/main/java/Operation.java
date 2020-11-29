@@ -12,6 +12,7 @@ public class Operation {
      * @param type Type of Operation (begin, begin_read_only, commit)
      * @param transactionId the transacationId for this operation 
      * @param arrivingTime the time this operation arrived 
+     * @author Yuhan Zhou 
      */
     public Operation(OperationType type, int transactionId, int arrivingTime) {
         this.type = type;
@@ -25,6 +26,7 @@ public class Operation {
      * @param transactionId the transacationId for this operation 
      * @param variableId the variable the transaction wants to read 
      * @param arrivingTime the time this operation arrived 
+     * @author Yuhan Zhou 
      */
     public Operation(OperationType type, int transactionId, int variableId, int arrivingTime) {
         this.type = type;
@@ -40,6 +42,7 @@ public class Operation {
      * @param variableId the variable the transaction wants to write to 
      * @param valueToWrite the value the transaction wants to write to the variable 
      * @param arrivingTime the time this operation arrived 
+     * @author Yuhan Zhou 
      */
     public Operation(OperationType type, int transactionId, int variableId, int valueToWrite, int arrivingTime) {
         this.type = type;
@@ -52,6 +55,7 @@ public class Operation {
     /**
      * Getting the type of the Operation
      * @return the type of the Operation 
+     * @author Yuhan Zhou 
      */
     public OperationType getType() {
         return type;
@@ -60,6 +64,7 @@ public class Operation {
     /**
      * Getting the transaction of the Operation 
      * @return the transaction of the Operation 
+     * @author Yuhan Zhou 
      */
     public int getTransactionId() {
         return transactionId;
@@ -68,6 +73,7 @@ public class Operation {
     /**
      * Getting the variable of the Operation 
      * @return the variable of the Operation 
+     * @author Yuhan Zhou 
      */
     public int getVariableId() {
         return variableId;
@@ -76,6 +82,7 @@ public class Operation {
     /**
      * Getting the value that is being written to a variable of the Operation 
      * @return the value that is being written to a variable of the Operation 
+     * @author Yuhan Zhou 
      */
     public int getValueToWrite() {
         return valueToWrite;
@@ -84,6 +91,7 @@ public class Operation {
     /**
      * Getting the time the operation arrived 
      * @return the time the operation arrived 
+     * @author Yuhan Zhou 
      */
     public int getArrivingTime() {
         return arrivingTime;

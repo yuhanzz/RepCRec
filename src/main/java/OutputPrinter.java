@@ -11,6 +11,7 @@ public class OutputPrinter {
     /**
      * Constructor for OutputPrinter
      * @param verbose if -v is in the arguments in the main 
+     * @author Lillian Huang 
      */
     public OutputPrinter(boolean verbose) {
         this.verbose = verbose;
@@ -18,6 +19,7 @@ public class OutputPrinter {
 
     /**
      * Prints the output 
+     * @author Lillian Huang 
      */
     public void print() {
         System.out.println(buffer.toString());
@@ -28,6 +30,7 @@ public class OutputPrinter {
      * @param siteId
      * @param dataCopies
      * sample output: site 1 – x2: 6, x3: 2, ... x20: 3
+     * @author Lillian Huang 
      */
     public void dumpSite(int siteId, Map<Integer, DataCopy> dataCopies) {
         buffer.append("site " + siteId);
@@ -51,6 +54,7 @@ public class OutputPrinter {
      * @param variableId which variable is being read 
      * @param value the value of the variable 
      * @param transactionId which transaction read the variable 
+     * @author Lillian Huang 
      */
     public void printReadSuccess(int variableId, int value, int transactionId) {
         buffer.append("x" + variableId + ": " + value);
@@ -65,6 +69,7 @@ public class OutputPrinter {
      * @param variableId which variable is being written to 
      * @param value the value that is being written in 
      * @param transactionId which transaction is writing to the variable 
+     * @author Lillian Huang 
      */
     public void printWriteSuccess(int variableId, int value, int transactionId) {
         if (verbose) {
@@ -75,6 +80,7 @@ public class OutputPrinter {
     /**
      * Prints out the transaction that has been successfully commited 
      * @param transactionId the transaction that has been successfully commited 
+     * @author Lillian Huang 
      */
     public void printCommitSuccess(int transactionId) {
         buffer.append("T" + transactionId + " commit\n");
@@ -83,6 +89,7 @@ public class OutputPrinter {
     /**
      * Prints out the transaction that has been aborted 
      * @param transactionId the transaction that has been aborted 
+     * @author Lillian Huang 
      */
     public void printAbortSuccess(int transactionId) {
         buffer.append("T" + transactionId + " abort\n");
@@ -91,6 +98,7 @@ public class OutputPrinter {
     /**
      * Prints out the transaction that will be aborted due to deadlock 
      * @param transactionId the transaction that will be aborted due to deadlock 
+     * @author Lillian Huang 
      */
     public void printDeadlock(int transactionId) {
         if (verbose) {
@@ -101,6 +109,7 @@ public class OutputPrinter {
     /**
      * Prints out the waitsfor graph 
      * @param waitsForGraph the current waitsfor graph 
+     * @author Lillian Huang 
      */
     public void printWaitsForGraph(Map<Integer, Set<Integer>> waitsForGraph) {
         if (verbose) {
@@ -116,6 +125,7 @@ public class OutputPrinter {
     /**
      * Prints out the cycle if there is one 
      * @param cycle the cycle causing the deadlock 
+     * @author Lillian Huang 
      */
     public void printCycle(Set<Integer> cycle) {
         if (verbose && !cycle.isEmpty()) {

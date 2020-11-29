@@ -9,6 +9,7 @@ public class LockManager {
 
     /**
      * Initialize the lock manager
+     * @author Lillian Huang 
      */
     public LockManager(){
         lockTable = new HashMap<>();
@@ -22,6 +23,7 @@ public class LockManager {
      * @param variableId the variable id
      * @param lockType the lock type (read / write)
      * @return if acquire lock successfully, return empty set; if blocked, return a set containing conflicting transactions
+     * @author Lillian Huang 
      */
     public Set<Integer> acquireLock(int transactionId, int variableId, LockType lockType) {
         Map<Integer, LockType> locks = lockTable.getOrDefault(variableId, new HashMap<>());
@@ -60,6 +62,7 @@ public class LockManager {
      * @param transactionId the transaction id
      * @param variableId the variable id
      * @param holdingReadLock whether this transaction is having a read lock before it tries to obtain a write lock
+     * @author Lillian Huang 
      */
     public void releaseWriteLock(int transactionId, int variableId, boolean holdingReadLock) {
         // remove the lock
@@ -78,6 +81,7 @@ public class LockManager {
      * Remove all the locks that this transaction has, will be called when commit or abort
      * side effect: might change lock table
      * @param transactionId the transaction to commit or abort
+     * @author Lillian Huang 
      */
     public void releaseAllLocks(int transactionId) {
         // remove this transaction from lock table
@@ -91,6 +95,7 @@ public class LockManager {
     /**
      * Clear the lock table, will be called when site fails
      * side effect: will change lock table
+     * @author Lillian Huang 
      */
     public void clear() {
         lockTable.clear();
@@ -102,6 +107,7 @@ public class LockManager {
      * @param lockType the lock type (read / write)
      * @param transactionId the transaction acquiring the lock
      * @param variableId the variable id
+     * @author Lillian Huang 
      */
     private void addLock(LockType lockType, int transactionId, int variableId)
     {
@@ -120,6 +126,7 @@ public class LockManager {
      * @param variableId the variable id
      * @param transactionId the transaction id
      * @return true if the transaction is holding the lock, false if not
+     * @author Lillian Huang 
      */
     public boolean isHoldingLock(LockType lockType, int variableId, int transactionId) {
         if (!lockTable.containsKey(variableId)) {

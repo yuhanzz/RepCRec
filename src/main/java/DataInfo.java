@@ -14,6 +14,7 @@ public final class DataInfo {
      * @param variableId The variable 
      * @param type The DataType (Replicated or NonReplicated Data)
      * @param availableSites The sites that have the copy of this variable
+     * @author Yuhan Zhou 
      */
     public DataInfo(int variableId, DataType type, List<Integer> availableSites) {
         this.variableId = variableId;
@@ -24,6 +25,7 @@ public final class DataInfo {
     /**
      * Getter of all the sites that has this variable 
      * @return all the sites that have the copy of this variable 
+     * @author Yuhan Zhou 
      */
     public List<Integer> getAvailableSites() {
         return availableSites;
