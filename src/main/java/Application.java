@@ -6,13 +6,19 @@ import java.io.FileNotFoundException;
 public class Application {
     public static void main(String[] args) {
         boolean verbose = false;
-        if (args.length > 0 && args[args.length - 1].equals("-v")) {
-            verbose = true;
+        String fileName = null;
+        for (String arg : args) {
+            if (arg.equals("-v")) {
+                verbose = true;
+            } else {
+                fileName = arg;
+            }
         }
         Database db = new Database(verbose);
         try {
-            if (args.length == 1) {
-                db.simulate(new File(args[0]));
+            if (fileName != null) {
+                System.out.println(fileName);
+                db.simulate(new File(fileName));
             } else {
                 db.simulate(null);
             }
@@ -21,3 +27,4 @@ public class Application {
         }
     }
 }
+

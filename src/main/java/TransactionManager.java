@@ -168,9 +168,25 @@ public class TransactionManager {
         // if need to acquire lock, firstly check if there is any blocking transactions in pending list to prevent starvation
         Set<Integer> blockingTransactions = getBlockingTransaction(operation);
         if (!blockingTransactions.isEmpty()) {
-            addEdgesToWaitsForGraph(transactionId, blockingTransactions);
-            transaction.setStatus(TransactionStatus.BLOCKED);
-            return false;
+            // if all the blocking operations are read and do not hold any lock, it means that they are waiting for a committed write to make the data copy available, so the write does not need to wait
+            boolean needToWait = false;
+            for (int blockingTransactionId : blockingTransactions) {
+                Transaction blockingTransaction = transactions.get(blockingTransactionId);
+                Operation blockingOperation = null;
+                for (Operation pendingOperation : pendingList) {
+                    if (pendingOperation.getTransactionId() == blockingTransactionId) {
+                        blockingOperation = pendingOperation;
+                    }
+                }
+                if (blockingOperation.getType() == OperationType.WRITE || blockingTransaction.isHoldingLock(LockType.READ, variableId)) {
+                    needToWait = true;
+                }
+            }
+            if (needToWait) {
+                addEdgesToWaitsForGraph(transactionId, blockingTransactions);
+                transaction.setStatus(TransactionStatus.BLOCKED);
+                return false;
+            }
         }
 
         // otherwise, try to acquire write lock
@@ -462,7 +478,9 @@ public class TransactionManager {
     private void addEdgesToWaitsForGraph(int source, Set<Integer> destinations) {
         Set<Integer> vertices = waitsForGraph.getOrDefault(source, new HashSet<>());
         for (int destination : destinations) {
-            vertices.add(destination);
+            if (source != destination) {
+                vertices.add(destination);
+            }
         }
         waitsForGraph.put(source, vertices);
     }
